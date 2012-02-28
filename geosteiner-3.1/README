@@ -1,0 +1,1011 @@
+========================================================================
+                            GeoSteiner 3.1
+
+	Copyright (c) 1999, 2001 by David M. Warme, Pawel Winter,
+				    & Martin Zachariasen.
+
+========================================================================
+
+This directory contains GeoSteiner version 3.1, which solves the
+following NP-hard problems:
+
+	- Euclidean Steiner minimal tree
+	- Rectilinear Steiner minimal tree
+	- Minimum spanning tree in hypergraphs
+
+Geosteiner is the joint work of:
+
+	- David Warme		Emergent Information Technologies, Inc.
+	- Pawel Winter		University of Copenhagen
+	- Martin Zachariasen	University of Copenhagen
+
+The latest news regarding the GeoSteiner package can be found at:
+
+	http://www.diku.dk/geosteiner/
+
+Bug reports, suggested improvements and constructive comments are
+greatly appreciated.
+
+
+Author's information
+====================
+
+David Warme
+Emergent Information Technologies, Inc.
+2600 Park Tower Drive, Suite 900
+Vienna, Virginia  22180  USA
+E-mail:	David.Warme@Emergent-IT.com
+Phone:	703-645-8441
+Fax:	703-641-7172
+
+Pawel Winter
+Department of Computer Science (DIKU), University of Copenhagen
+Universitetsparken 1, DK-2100 Copenhagen East, Denmark
+E-mail:	pawel@diku.dk
+Phone:	+45 35 32 14 00
+Fax:	+45 35 32 14 01
+
+Martin Zachariasen
+Department of Computer Science (DIKU), University of Copenhagen
+Universitetsparken 1, DK-2100 Copenhagen East, Denmark
+E-mail:	martinz@diku.dk
+Phone:	+45 35 32 14 00
+Fax:	+45 35 32 14 01
+
+
+Historic Note
+=============
+
+To the best knowledge of the authors, this code represents the
+computational state of the art as of February 2001.  It solves problems
+more than an order of magnitude larger than any other software of which
+we are aware.
+
+The "GeoSteiner" name was coined (and is therefore "owned") by Pawel
+Winter, whose seminal program GEOSTEINER started it all back in 1985.
+In 1996 Winter and Zachariasen published an improved algorithm called
+"GeoSteiner96".
+
+On the other hand, Warme's first Steiner tree code was the Salowe-Warme
+algorithm in 1993, which used backtrack search to concatenate
+rectilinear FSTs.  In 1998, Warme's PhD dissertation described a new
+branch-and-cut code for finding minimum spanning trees in arbitrary
+hypergraphs -- which was applied to the FST concatenation problem for
+both rectilinear and Euclidean FSTs.
+
+The first distribution of the combined code therefore represented the
+"third version" of each group's code, and it was thus named
+GeoSteiner version 3.0.  This and subsequent versions continue
+that naming convention.
+
+
+References
+==========
+
+D. M. Warme.  Spanning Trees in Hypergraphs with Applications to Steiner
+Trees.  Ph.D. Thesis, Computer Science Dept., The University of
+Virginia, 1998.
+
+P. Winter and M. Zachariasen.  Euclidean Steiner Minimum Trees: An
+Improved Exact Algorithm.  Networks, 30:149--166, 1997.
+
+M. Zachariasen.  Rectilinear Full Steiner Tree Generation.  Networks 33,
+125-143, 1999.
+
+
+Building and Installing GeoSteiner
+==================================
+
+GeoSteiner comes with a "GNU style" configure script.  For those of
+you who are especially impatient, type the following:
+
+	$ ./configure
+	$ make
+
+For complete instructions on building and installing Geosteiner, see
+the INSTALL file.
+
+
+Program Descriptions
+====================
+
+GeoSteiner consists of the following programs:
+
+	rand_points
+	lib_points
+	efst
+	rfst
+	bb
+	dumpfst
+	plotfst
+	prunefst
+	fst2graph
+	kr
+
+and a single data file:
+
+	prelude.ps
+
+
+rand_points
+	- Generates random point sets.  The coordinates of the points
+	  are integers chosen (more or less) uniformly from the range
+	  0 <= x,y < 10000.  The following options are permitted:
+
+		-e	Display the initial seed used on stderr.
+
+		-f	Display the final seed state (to stderr, unless
+			-o is specified, in which case to stdout).
+
+		-o	Display the initial seed to stdout.
+
+		-n	Use the "new" random number generator that uses
+			a 64-bit shift register with XOR feedback.
+			Without this option a generator is used that
+			functions identically to the original PDP-11
+			Unix  rand(3) routine (with all of its ugly
+			warts intact).
+
+		-s N	Set the initial seed to be N.
+
+		-r	Randomize.  Use an initial seed chosen from the
+			current date and time.
+
+lib_points
+	- Reads a point set in either TSPLIB or OR-Library format from
+	  stdin and converts the input to clean point coordinates as
+	  required by "efst" or "rfst".  The program automatically
+	  determines the input file type.  The program has one
+	  optional parameter (which has value 1 by default) that
+	  specifies which instance number should be extracted from an
+	  OR-Library file.
+
+efst	- Reads a point set from stdin, and generates a set of Euclidean
+	  FSTs that contains at least one Euclidean Steiner minimal tree.
+	  The output on stdout is ASCII encoded, but not particularly
+	  meaningful except as input to the "bb", "dumpfst",
+	  "plotfst", "prunefst" and "fst2graph" programs.
+	  The following options are permitted:
+
+		-d txt	Description of problem instance.
+		-e K	Sets the initial number of equilateral points
+			per terminal to K.  The default is 100.  The
+			equilateral points are automatically reallocated
+			as needed, but some very large point sets may run
+			out of memory unless the initial allocation is
+			sufficient.
+		-f E	Epsilon multiplication factor for floating
+			point comparisons.  Default is 32.
+		-g	Use greedy heuristic instead of Smith-Lee-Liebman
+			(more time consuming but generates fewer eq-points).
+		-k K	Generate only FSTs having at most K terminals.
+			This can save considerable time but can also
+			eliminate FSTs that must be in the optimal
+			Steiner tree (i.e., solutions can become
+			suboptimal).
+		-m M    Use multiple precision.  Larger M use it more.
+			Default is M=0 which disables multiple precision.
+			The use of this option requires that the GNU
+			Multi-Precision arithmetic library (GMP) has
+			been linked with the program (see the INSTALL
+			file for more details).
+		-t	Print detailed timings to stderr.
+		-v N	Generate the output in version N of the FST
+			data format.  Supported versions are 0, 2 and 3.
+			Version 3 is the default.
+
+rfst	- Reads a point set from stdin, and generates a set of rectilinear
+	  FSTs that contains at least one rectilinear Steiner minimal tree.
+	  The output on stdout is ASCII encoded, but not particularly
+	  meaningful except as input to the "bb", "dumpfst",
+	  "plotfst", "prunefst" and "fst2graph" programs.
+	  The following options are permitted:
+
+		-d txt	Description of problem instance.
+		-k K	Generate only FSTs having at most K terminals.
+			This can save time but can also	eliminate FSTs
+			that must be in the optimal Steiner tree
+			(i.e., solutions can become suboptimal).
+		-t	Print detailed timings to stderr.
+		-v N	Generate the output in version N of the FST
+			data format.  Supported versions are 0, 2 and 3.
+			Version 3 is the default.
+
+bb	- The FST concatenation algorithm using branch-and-cut to solve
+	  an IP formulation of the problem.  The FST data is read from
+	  stdin and a plot of the solution is produced on stdout in an
+	  "incomplete" postscript form.  A printable postscript file can
+	  be obtained by PREPENDING the file "prelude.ps" to the program
+	  output.  Various trace messages appear in the output as
+	  postscript comments.  (The name "bb" is for branch-and-bound
+	  -- note that the name "bc" is already taken on Unix.)  The
+	  following options are permitted:
+
+		-2	Omit all 2-terminal SEC's from the initial
+			constraint pool.
+		-b	Disable "strong branching", which chooses
+			branching variables very carefully.
+		-B N	Set branch variable selection policy.
+		         N=0: naive max of mins,
+			 N=1: smarter lexicographic max of mins (default),
+			 N=2: product of improvements.
+		-l T	Sets a CPU time limit of T.
+		-r	Plot the optimal LP relaxation solution for the
+			root node, but only if it is fractional.
+		-R	When optimal root LP relaxation is obtained,
+			determine for each LP iteration the number of
+			final constraints whose first violation occurred
+			during that iteration.
+		-T N	Search N times more thoroughly for strong
+			branching variables.
+		-u B	Specify B to be the initial upper bound assumed
+			by the branch-and-bound.
+		-z N	Sets the target number of pool non-zeros to N.
+
+	  When configured to use CPLEX, the following additional
+	  option is permitted:
+
+		-a M N	Force CPLEX allocation to be at least M rows
+			and N non-zeros.
+
+	  When configured to use lp_solve, the following additional
+	  options are permitted:
+
+		-p	Turn on the use of perturbations.  This is the
+			method that lp_solve_2.3 uses to deal with
+			degenerate problems.
+
+		-s	Turn on the use of problem scaling.  Once again
+			a rather crude attempt to address problems that
+			are badly behaved numerically.
+
+	  The following "grep-able" items appear in the output within
+	  postscript comments, and may be potentially useful:
+
+		@0	The instance description from the FST data
+			file.
+		@1	Summary statistics:
+				- Number of terminals
+				- Number of FSTs/hyperedges
+				- Number of branch-and-bound nodes
+				- Number of LP's solved
+				- Phase 1 CPU time (FST generation)
+				- Phase 2 CPU time (branch-and-cut)
+				- Total CPU time
+		@2	LP/IP statistics:
+				- Length of optimal Steiner tree
+				- Length of LP relaxation at root node
+				- Percent of LP/IP "gap"
+				- # of LP's solve for root node
+				- CPU time for root node
+				- Percent reduction of SMT over MST
+		@3	Initial constraint pool statistics:
+				- Number of rows in pool
+				- Number of non-zeros in pool
+				- Number of rows in LP tableaux
+				- Number of non-zeros in LP tableaux
+		@4	Constraint pool statistics for root node:
+				- Number of rows in pool
+				- Number of non-zeros in pool
+				- Number of rows in LP tableaux
+				- Number of non-zeros in LP tableaux
+		@5	Final constraint pool statistics:
+				- Number of rows in pool
+				- Number of non-zeros in pool
+				- Number of rows in LP tableaux
+				- Number of non-zeros in LP tableaux
+		@6	Statistics on FSTs occurring in the SMT:
+				- Number of FSTs in SMT
+				- Average FST size in SMT
+				- Maximum FST size in SMT
+				- Number of FSTs of size 2 in SMT
+				- Number of FSTs of size 3 in SMT
+				- Number of FSTs of size 4 in SMT
+				- Number of FSTs of size 5 in SMT
+				- Number of FSTs of size 6 in SMT
+				- Number of FSTs of size 7 in SMT
+				- Number of FSTs of size 8 in SMT
+				- Number of FSTs of size 9 in SMT
+				- Number of FSTs of size 10 in SMT
+				- Number of FSTs of size > 10 in SMT
+		@C	Coordinates of a Steiner point in the optimal
+			solution.  The Steiner points form a
+			"certificate" of the optimal solution since the
+			optimal solution can be reconstructed by
+			computing a minimum spanning tree of the
+			original terminals and these Steiner points.
+		@D	Deletion of slack rows from LP tableaux.
+		@LO
+		@LN	This pair of messages is emitted every time the
+			lower bound gets tighter.  They contain the CPU
+			time and the old/new bound, as well as the
+			old/new gap percentages.  These can be plotted
+			(i.e., using gnuplot) to graphically show the
+			convergence rate of the algorithm.
+		@NC	Creation of a new branch-and-bound node:
+				- Node number
+				- Parent node number
+				- Branch variable
+				- Branch direction
+				- Objective value (the real LP objective
+				  is at least this value)
+		@PAP	Adding "pending" pool constraints to the LP
+			tableaux.
+		@PL	State of LP tableaux constraints.
+		@PMEM	Constraint pool memory status.  Printed before
+			and after each garbage collection, and after
+			adding new/initial constraints to the pool.
+		@r	Experimental output from -R switch.
+		@RC	Experimental output from -R switch.
+		@UO
+		@UN	This pair of messages is emitted every time the
+			upper bound gets tighter.  They contain the CPU
+			time and the old/new bound, as well as the
+			old/new gap percentages.  These can be plotted
+			(i.e., using gnuplot) to graphically show the
+			convergence rate of the algorithm.
+
+prunefst
+	- Reduce the set of FSTs generated by "rfst" or "efst" while
+	  still retaining at least one optimal solution among the
+	  remaining set of FSTs.  This program can reduce the time to
+	  solve the FST concatenation problem considerably, but is
+	  only worthwhile for large instances.  The following options
+	  are permitted:
+
+		-d txt	Description of problem instance.
+		-f E	Epsilon multiplication factor for floating
+			point comparisons.  Default is 32.
+		-t	Print detailed timings to stderr.
+
+dumpfst	- Dumps information about the FSTs generated by "rfst" and
+	  "efst" in a readable form.  There are two forms of this
+	  command, each producing different types of output.  The first
+	  form of the command is obtained whenever the -d or -h switches
+	  are used.  These switches provide summary information ONLY --
+	  FST statistics, and/or a histogram of FST sizes:
+
+		dumpfst [-d | -h [-a]] <FSTs
+
+	  where the switches
+
+		-d	Display statistics about FSTs.
+		-h	Display histogram of FST sizes.
+		-a	Include all FSTs in histogram, even those that
+			were "pruned" by the FST generator or a pruning
+			algorithm.
+
+	  The second form of the command is obtained when neither -d nor
+	  -h are specified.  This form dumps all of the FSTs in a
+	  readable form.  Each line of output represents a single FST,
+	  listing its terminal numbers (0 through N-1).  The terminals
+	  are listed in the same order that they occur in the actual
+	  data structures, although they can optionally be sorted in
+	  numeric order.  The length of each FST can optionally be
+	  appended to each line:
+
+		dumpfst [-als] <FSTs
+
+	  The command line switches are:
+
+		-a	Include all FSTs, even those that were "pruned"
+			by the FST generator or a pruning algorithm.
+		-l	Append the FST length to each output line.
+		-s	Terminals of each FST are listed in numeric
+			(sorted) order instead of internal order.
+
+plotfst	- Program to generate various plots of FSTs in an FST data
+	  file.  Reads the FST data file on stdin and produces
+	  postscript on stdout for the plots indicated by the command
+	  line switches:
+
+		-f	Prints all FSTs, 12 FSTs per page.
+		-g	Prints FSTs in "grouped" fashion, 12 groups per
+			page.
+		-o	Prints all FSTs overlaid together.
+		-p	Prints only the points, no FSTs.
+
+	  Note that the file "prelude.ps" must be PREPENDED to the
+	  output of this program in order to have a complete postscript
+	  document.
+
+fst2graph
+	- Reads FSTs from stdin and produces an (ordinary) graph
+	  on stdout representing the FSTs.  For the rectilinear
+	  problem, the FSTs are overlaid on the Hanan grid and the
+	  remaining Hanan grid is output.  For the Euclidean problem
+	  the set of all terminals and Steiner points in all FSTs
+	  forms the set of vertices and the line segments the edges.
+	  Output data is printed in OR-Library format by default, but
+	  the SteinLib format is also supported:
+
+		-d txt	Description of problem instance.
+		-s	Prints data in SteinLib format.
+		-e	Generate edge graph for the rectilinear problem.
+		-u	Output unscaled (fractional) data for the
+			rectilinear problem.
+
+kr	- Reads a point set from stdin.  It then computes a minimum
+	  spanning tree, and a heuristic Steiner tree using the
+	  1-Steiner heuristic of Kahng and Robins.  The plots go to
+	  stdout in "incomplete" postscript form.  Prepend the
+	  "prelude.ps" file to obtain a printable postscript file.  This
+	  implementation of 1-Steiner is substantially slower than
+	  Robins' own code.  The following switches are permitted:
+
+		-k	Skip the Kahng-Robins heuristic.
+
+		-l T	Set a CPU time limit of T, which may be
+			expressed for example as 1day4hours20min30sec,
+			1d4h20m30s, 10000s, 300m, etc.
+
+		-m	Skip the minimum spanning tree.
+
+
+Examples of Program Invocation
+==============================
+
+The following command will generate a set of 70 random points and
+compute a rectilinear Steiner minimal tree for it:
+
+	rand_points 70 | rfst | bb
+
+The following computes an ESMT for the same set of points:
+
+	rand_points 70 | efst | bb
+
+Note that rand_points always generates the same sequence of points
+unless given the `-r' or `-s seed' option.
+
+The following (Bourne shell) examples can be used to generate complete
+printable postscript plots for these problems:
+
+	(cat prelude.ps; rand_points 70 | rfst | bb) >rsmt70.ps
+
+	(cat prelude.ps; rand_points 70 | efst | bb) >esmt70.ps
+
+The complete set of FSTs can also be plotted as follows:
+
+	(cat prelude.ps; rand_points 70 | rfst | plotfst -fgo) >rfsts.ps
+
+	(cat prelude.ps; rand_points 70 | efst | plotfst -fgo) >efsts.ps
+
+A reduced Hanan grid in the OR-Library format (for the rectilinear
+problem) can be generated as follows:
+
+	rand_points 70 | rfst | fst2graph
+
+By pruning the set of FSTs an even more reduced grid graph can be
+generated:
+
+	rand_points 70 | rfst | prunefst | fst2graph
+
+An Euclidean Steiner minimal tree for the "berlin52.tsp" instance from
+TSPLIB can be constructed and displayed as follows (assuming that the
+file "berlin52.tsp" is present in your GeoSteiner directory):
+
+	(cat prelude.ps; cat berlin52.tsp | lib_points | efst | bb) | \
+		ghostview -
+
+
+Overview of the Source Code
+===========================
+
+The GeoSteiner source code resides entirely in the top-level
+directory.  There is a single subdirectory "lp_solve_2.3" that contains
+the source code for a *CUSTOMIZED* version of this public-domain LP
+solver written by Michel Berkelaar and Jeroen Dirks.  For a description
+of the changes we have made to this package, see the file:
+
+	lp_solve_2.3/README.custom
+
+The original unmodified distribution of lp_solve_2.3 can be obtained
+from:
+
+	ftp://ftp.es.ele.tue.nl/pub/lp_solve
+
+
+Detailed description of each file in the GeoSteiner distribution:
+
+bb.c		(Branch-and-cut)
+	All of the gory details of the branch-and-cut algorithm.  The
+	various separation procedures are called from this file, but
+	are defined in other files.
+
+bb.h		(Branch-and-cut)
+	Data structures and function prototypes pertaining to the
+	branch-and-bound / branch-and-cut algorithm.
+
+bbmain.c	(Main program)
+	The main routine for the "bb" program.
+
+bbsubs.c	(Branch-and-cut)
+	Low-level subroutines of the branch-and-cut.
+
+bbsubs.h	(Branch-and-cut)
+	Declarations of low-level branch-and-cut routines.
+
+bmst.c		(FST generator, miscellaneous utility)
+	Routines to compute the MST of a subset of the terminals using
+	the bottleneck Steiner distance as the metric.
+
+bsd.c		(FST generator, miscellaneous utility)
+	Routines to compute the bottleneck Steiner distance between two
+	terminals.
+
+bsd.h		(FST generator, miscellaneous utility)
+	Data structures and function prototypes pertaining to the
+	bottleneck Steiner distance routines.
+
+btsearch.c      (FST pruning)
+	Routines to perform backtrack search for a solution.  Faster
+	than branch-and-cut for small instances.
+
+btsearch.h	(FST pruning)
+	Declarations for the special backtrack search used by the FST
+	pruning code.
+
+config.h	(General utility)
+	Created by running the ./configure script.  Defines various
+	constants and switches that control the configuration of
+	GeoSteiner 3.1.  This file is automatically generated from the
+	template file `config.h.in'.
+
+constrnt.c	(Branch-and-cut)
+	Routines that maintain the constraint pool and the constraints
+	currently in the LP tableaux.  Most of the details of
+	interfacing to a particular LP solver reside in this file.
+
+constrnt.h	(Branch-and-cut)
+	Data structures and function prototypes pertaining to
+	constraints and the constraint pool.
+
+cpulimit.c	(Utility)
+	Routines for monitoring and limiting CPU time usage by a
+	program.
+
+cputime.c	(Utility)
+	Routines for metering CPU time usage, and converting CPU times
+	into printable form.
+
+cra.c		(Utility)
+	Closest rational approximation routine.
+
+		(Utility)
+cra.h	Declaration of closest rational approximation routine.
+
+cutset.c	(Branch-and-cut)
+	The separation routines for finding violated cutset constraints
+	-- a fast one that identifies cutsets of zero weight (connected
+	components), and another for finding fractional weight cutsets.
+
+cutset.h	(Branch-and-cut)
+	Data structures and function prototypes pertaining to the cutset
+	separation algorithms.
+
+cutsubs.c	(Branch-and-cut)
+	Subroutines for processing of violated cutset constraints.
+
+dsuf.c		(Utility)
+	A general disjoint-set union-find data structure.
+
+dsuf.h		(Utility)
+	Data structures and function prototypes pertaining to the
+	disjoint-set union-find routines.
+
+dumpfst.c	(Main program)
+	Main routine for a utility program to dump FSTs in a meaningful
+	format.
+
+efst.c		(Main program)
+	Main routine for the Euclidean FST generator.  The bulk of the
+	EFST generation algorithm resides in this file.
+
+efst.h		(Euclidean FST generator)
+	Data structures and function prototypes pertaining to the
+	Euclidean FST generator.
+
+efuncs.h	(Euclidean FST generator)
+	Basic plane geometry functions used by Euclidean FST generator
+        and pruning algorithms.
+
+egmp.c		(Euclidean FST generator)
+	Support routines for the EFST generator that use the GNU
+	Multi-Precision arithmetic library (GMP -- if we have
+        it) to compute certain items with high accuracy.
+
+	        (Euclidean FST generator)
+egmp.h	Declarations for GMP support routines.
+
+emptyr.c	(Rectilinear FST generator)
+	Routines to quickly determine whether or not a given pair of
+	terminals define an empty rectangle or not.  This information is
+	computed as part of the preprocessing step before recursively
+	growing rectilinear FSTs.
+
+emptyr.h	(Rectilinear FST generator)
+	Data structures and function prototypes pertaining to the empty
+	rectangle testing routines.
+
+emst.c		(Euclidean FST generator)
+	Routines to compute Euclidean minimum spanning trees.
+
+expand.c	(Branch-and-cut)
+	Subroutine to expand logical constraints into physical form.
+
+flow.c		(Branch-and-cut)
+	A general purpose maximum-flow network solver.  It uses the very
+	standard method -- breadth-first search to find an augmenting
+	path.  It is used in three of the separation procedures: the one
+	for fractional cutsets, the heuristic flow formulation for
+	SEC's, and the deterministic flow formulation for SEC's.
+
+flow.h		(Branch-and-cut)
+	Data structures and function prototypes pertaining to the
+	general network maximum-flow solver.
+
+fst2graph.c	(Main program)
+	The main routine to generate ordinary graphs from FST.
+
+genps.c		(Utility)
+	Routines for generating postscript plots of things.
+
+genps.h		(Utility)
+	Data structures and function prototypes pertaining to the
+	postscript generation routines.
+
+greedy.c	(Euclidean FST generator)
+	Implementation of greedy O(n^2) heuristic for computing
+	Euclidean Steiner trees (Algorithmica 25, 418-437, 1999).
+
+io.c		(Utility)
+	Routines for reading in coordinates, and converting coordinate
+	values and distances into printable form.  It also performs
+	scaling of coordinates and distances to and from the internal
+	representation, which strives to store coordinates exactly as
+	INTEGER values stored in floating point variables.
+
+kr.c		(Main program)
+	The main program for the "kr" program, which plots minimum
+	spanning trees and heuristic Steiner trees using the 1-Steiner
+	heuristic of Kahng and Robins.
+
+lib_points.c	(Main program)
+	Conversion of OR-LIBRARY or TSPLIB files into a "clean" set of
+        points that can be read by "rfst" or "efst".
+
+machine.c       (Utility)
+	Routines for obtaining a string that describes the machine
+	running the program.
+
+mst.c		(Utility)
+	Routines to compute Minimum Spanning Trees.
+
+p1io.h		(Utility)
+	Declarations pertaining to the routines used for reading and
+	writing FST data files (the so-called "phase 1 data format").
+
+p1read.c	(Utility)
+	Routines for reading FST data files (the so-called "phase 1
+	data") from stdin.  Automatically recognizes the various
+	versions of the FST data.
+
+p1write.c	(Utility)
+	Routines for writing FST data files (the so-called "phase 1
+	data") to stdout.  The data can be written in any of several
+	formats distinguished by version numbers.
+
+plotfst.c	(Main program)
+	Main routine for a program to plot full sets in various ways.
+
+prunefst.c	(Main program)
+	Main program for pruning of Euclidean and rectilinear FSTs.
+
+rand_points.c	(Main program)
+	A stand-alone program for generating random point sets.
+
+rfst.c		(Main program)
+	Main routine for the rectilinear FST generator.  The bulk of the
+	RFST generation algorithm resides in this file.
+
+rfst.h		(Rectilinear FST generator)
+	Data structures and function prototypes pertaining to the
+	rectilinear FST generator.
+
+rmst.c		(Rectilinear FST generator)
+	This file contains the minimum spanning tree algorithm, and also
+	a brute-force implementation of the 1-Steiner heuristic of Kahng
+	and Robins.
+
+sec2.c		(Branch-and-cut)
+	The deterministic separation procedure for SEC's that uses a
+	network flow formulation.
+
+sec2.h		(Branch-and-cut)
+	Data structures and functions prototypes pertaining to the
+	deterministic SEC separation routines.
+
+sec_comp.c	(Branch-and-cut)
+	Decomposition and reduction routines for SEC separation.
+	Contains a routine to reduce the size of an SEC separation
+	problem and perhaps split it up into disjoint components that
+	can be individually separated.  A number of reduction and
+	decomposition techniques are used.
+
+sec_comp.h	(Branch-and-cut)
+	Data structures and function prototypes pertaining to the SEC
+	decomposition logic.
+
+sec_heur.c	(Branch-and-cut)
+	A collection of heuristic methods for separating subtour
+	elimination constraints.  The methods include exhaustive
+	(exhausting?) enumeration, enumeration of small-cardinality
+	subsets, and a network flow heuristic based on the method of
+	Padberg.
+
+sec_heur.h	(Branch-and-cut)
+	Data structures and function prototypes for the heuristic SEC
+	separation routines.
+
+sll.c		(Euclidean FST generator)
+	A heuristic Euclidean SMT routine based on that of Smith, Lee
+	and Liebman (Networks 11, 23-29, 1981).
+
+sortints.c	(Utility)
+	Routine to efficiently sort an array of integers.
+
+steiner.h	(Utility)
+	The "main" include file.  Fundamental types, constants and data
+	structures are defined here.
+
+triangle.c	(Euclidean FST generator)
+	The `triangle' package by Jonathan Shewchuk.  Used to compute
+	Delaunay triangulations for the Euclidean metric.
+
+triangle.h	(Euclidean FST generator)
+	Data structures and function prototypes defining the external
+	interfaces to Jonathan Shewchuk's `triangle' package.
+
+ub.c		(Branch-and-cut)
+	This file contains a subroutine whose purpose is to obtain good
+	heuristic Steiner trees by perturbing a fractional LP solution
+	slightly.  Such "feasible integer solutions" serve as upper
+	bounds in the backtrack search process.
+
+ub.h		(Branch-and-cut)
+	Data structures and function prototypes pertaining to the upper
+	bound heuristic routines.
+
+utils.c		(Utility)
+	A collection of utility routines, including: the memory
+	allocator "new()", the crash-and-die routine "fatal()", and a
+	few other miscellaneous odds and ends.
+
+
+FST Data File Formats
+=====================
+
+The FST generators produce output called FST data files.  (They are
+sometimes called "phase 1 data files", since FST generation is the first
+phase of the two-phase process for computing Steiner trees.
+
+FST data files come in three different formats, distinguished by version
+numbers.  Currently there are three such formats corresponding to
+versions 0, 2 and 3 of the FST data format.  (Version 1 is very
+obsolete, and no longer supported.)
+
+
+			Version 0
+			---------
+
+Version 0 is used to represent an abstract MST or Steiner tree in graph
+or hypergraph problem instance.  It is essentially the same format as
+used in Beasley's "OR-library" -- but extended slightly to handle
+hypergraph instances as well as graph instances.  The OR-library format
+is as follows:
+
+<Number of vertices N> <Number of edges M>
+For each edge:
+    <Vertex 1> <Vertex 2> <Edge cost>
+<Number of terminal vertices K>
+    <Terminal 1> <Terminal 2> ... <Terminal K>
+
+Vertices are numbered 1 through N.  Each <Terminal i> is the vertex
+number of a vertex that is a terminal (i.e., must be connected).
+The <Edge cost>'s are real numbers.
+
+We extend this format slightly by permitting each edge to have two OR
+MORE vertices.  In exchange for this flexibility, we require the entire
+description of each edge to reside on a single line of the data file.
+Therefore, the final number on each line represents the hyperedge cost,
+and all preceding numbers on the line represent the vertices of the
+hyperedge.
+
+
+			Version 2
+			---------
+
+Version 2 is used primarily to represent geometric FSTs (Euclidean or
+rectilinear), although it can also handle non-geometric (graph)
+instances.  It is unable, however, to represent Steiner tree in
+hypergraph problems, because it assumes every vertex is a terminal.
+
+In the following description, fields enclosed in <<...>> are omitted
+when the Metric is Graph.  The format is as follows:
+
+<Version Number: literally "V2">
+<Instance description (free text)>
+<Metric: 1 = Rectilinear, 2 = Euclidean, 3 = Graph>
+<Number of terminals (N)>
+<<Decimal length of MST>> <<Hex length of MST>>
+<<Number of duplicate terminal groups (ndg)>>
+<Coordinate/length scaling factor>
+<Machine description (free text)>
+<Front-end CPU-time (1/100s of a second, rounded to the nearest integer>
+<Number of hyperedges/FSTs (M)>
+For each terminal:
+    <<Decimal X-coord>> <<Decimal Y-coord>> <<Hex X-coord>> <<Hex Y-coord>>
+For each duplicate terminal group:
+    <<Number of duplicate terminals>>
+    <<Terminal indices (1..N), on one line separated by spaces>>
+For each hyperedge/FST:
+    <Number of terminals (Ni)>
+    <Terminal indices (1..N), on one line separated by spaces>
+    <Decimal length of hyperedge/FST> <Hex length of hyperedge/FST>
+    <<Number of Steiner points (Mi)>>
+    For each Steiner point:
+       <<Decimal X-coord>> <<Decimal Y-coord>> <<Hex X-coord>> <<Hex Y-coord>>
+    <<Number of FST edges (Ki)>>
+    For each FST edge:
+       <<endpoint-1>> <<endpoint-2>>
+    <FST status: 0 = never needed, 1 = maybe needed, 2 = always needed>
+    <Number of incompatible FSTs>
+    <Incompatible FST indices (1..M), on one line separated by spaces>
+    <Number of concatenation terminals>
+    <Concatenation terminals indices (1..N), on one line separated by spaces>
+
+
+			Version 3
+			---------
+
+Version 3 is the default format, and represents geometric FSTs
+(Euclidean or rectilinear) as well as graph instances.  Since it
+separately specifies each vertex to be either a terminal or Steiner
+vertex, it can also represent Steiner problems in graphs/hypergraphs.
+A number of obsolete fields from version 2 are omitted, however.
+
+In the following description, fields enclosed in <<...>> are omitted
+when the Metric is Graph.  The format is as follows:
+
+<Version Number: literally "V3">
+<Instance description (free text)>
+<Metric: 1 = Rectilinear, 2 = Euclidean, 3 = Graph>
+<Number of terminals (N)>
+<<Decimal length of MST>> <<Hex length of MST>>
+<Coordinate/length scaling factor>
+<Decimal Integrality delta> <Hex Integrality delta>
+<Machine description (free text)>
+<Front-end CPU-time (1/100s of a second, rounded to the nearest integer>
+<Number of hyperedges/FSTs (M)>
+For each terminal:
+    <<Decimal X-coord>> <<Decimal Y-coord>> <<Hex X-coord>> <<Hex Y-coord>>
+For each terminal:
+    <Terminal/Steiner flag: 0=Steiner, 1=Terminal>
+For each hyperedge/FST:
+    <Number of terminals (Ni)>
+    <Terminal indices (1..N), on one line separated by spaces>
+    <Decimal length of hyperedge/FST> <Hex length of hyperedge/FST>
+    <<Number of Steiner points (Mi)>>
+    For each Steiner point:
+       <<Decimal X-coord>> <<Decimal Y-coord>> <<Hex X-coord>> <<Hex Y-coord>>
+    <<Number of FST edges (Ki)>>
+    For each FST edge:
+       <<endpoint-1>> <<endpoint-2>>
+    <FST status: 0 = never needed, 1 = maybe needed, 2 = always needed>
+    <Number of incompatible FSTs>
+    <Incompatible FST indices (1..M), on one line separated by spaces>
+
+
+The following conventions are observed in versions 2 and 3 of the FST
+data file format:
+
+- Data input routines require only that the individual data fields be
+  separated by one or more white-space characters (space, tab, newline,
+  vertical tab, and form-feed are the white-space characters of ANSI C).
+
+- Data output routines shall align items according to the schema above:
+    - Schema fields that appear on separate lines shall be written on
+      separate lines.
+    - Schema fields that are all on one line shall be written all on one
+      line.
+    - The data shall be indented as shown by the schema.
+    - Each indentation level shall be one "tab stop".
+    - The implementor may freely choose the width of this "tab stop".
+
+- The <Instance description (free text)> and
+  <Machine description (free text)> fields shall each be a sequence of
+  0 to 79 characters.  Each character in the sequence may be any
+  printable ASCII character except newline.
+
+- The <on one line separated by spaces> fields are permitted to span
+  several lines, so long as the additional lines are each indented an
+  additional "tab stop".  The intent of this splitting is to fully pack
+  lines without exceeding some column limit (e.g., 80 columns).
+  If no data is to appear then the line is removed completely.
+
+- All decimal fields shall be UNSCALED -- just as in the original
+  terminal coordinate input data.
+
+- The hexadecimal fields shall be SCALED.  For example suppose that
+  the <Coordinate scaling factor> is K.  Then the following
+  relationship is implied:
+
+        <Decimal X-coord> = <Hex X-coord> / 10**K
+
+  where the equal sign is meant to imply "is within epsilon of".
+  Scaling of data shall be at the discretion of the FST generator.  For
+  example the FST generator is permitted to always specify a scaling
+  factor of zero -- thereby disabling the scaling feature.  Programs
+  that read FST data files should not assume that the hex-values (scaled
+  or otherwise) are all integral without first verifying the actual data
+  values.
+
+- The <Decimal Integrality delta> (<Hex Integrality delta>) fields
+  represent an UNSCALED (SCALED) lower bound on the amount by which two
+  solutions of different lengths must differ.  For Euclidean FSTs, this
+  must always be 0.  For rectilinear FSTs scaled to integer lengths this
+  would be 1 (scaled value).  For graphs with integer weights, this can
+  also be 1.  The branch-and-cut can use this to provide earlier cutoff
+  of nodes that cannot reduce the upper bound.
+
+- Let fields <endpoint-1> and <endpoint-2>, occur within an FST
+  containing Ni terminals and Mi Steiner points.  Let the field value be
+  J.  Then the interpretation of the endpoint field is as follows:
+
+        1 <= J <= Ni    ==> endpoint is the Jth terminal in the FST's
+                            list of terminals.
+
+        -Mi <= J <= -1  ==> endpoint is the -Jth Steiner point in the
+                            FST's list of Steiner points.
+
+- Duplicate terminal groups (DTGs) identify subsets of the vertices
+  having identical coordinates:
+    - The size of each DTG shall be at least 2.
+    - Each terminal may be listed in at most one DTG.
+    - The terminal indices listed in a single DTG must be distinct.
+    - The first terminal in each duplicate terminal group shall be
+      referenced by at least one FST (having FST status <> 0).
+    - The remaining terminals in each duplicate terminal group shall NOT
+      be referenced by any FST (having FST status <> 0).
+
+- If an FST has "never needed" status then the FST generator may output
+  ANY incompatibility and concatenation terminal information, including
+  no information at all (such information is redundant).
+
+- The incompatible information shall NOT include the FST itself.
+
+- The incompatible information need not include FSTs which are "never
+  needed".
+
+- The incompatible information need not include FSTs which share two or
+  more terminals.  It is assumed that programs that read FST data files
+  are smart enough to know about such basic incompatibilities already.
+  Omitting such incompatibilities can significantly reduce the size of
+  the data file.
+
+- The FST-graph for rectilinear FSTs must always be a "left-most" and
+  "top-most" Hwang topology.  If not, such FSTs will not appear to be
+  Hwang topologies when plotted.
+
+- A simple top-down traversal of each Euclidean FST-graph starting from
+  the first terminal must yield the recursive equilateral-point
+  structure of the FST.  In this way, programs that read Euclidean FST
+  data files are able to correctly compute the exact length of each FST
+  in terms of algebraic numbers, if desired.
+
+NOTE!  The version 0 and 3 data formats can be used to describe Steiner
+tree in graph (or hypergraph) instances.  However, GeoSteiner version
+3.1 cannot solve such problems!  It blindly assumes all vertices are
+terminals.  If given such an instance, GeoSteiner will produce the MST!
+(i.e., the minimum tree spanning *all* vertices, be they terminals,
+Steiner vertices, or any mixture thereof.)

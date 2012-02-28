@@ -1,0 +1,397 @@
+dnl ******************************************************************
+dnl
+dnl	File:	configure.in
+dnl	Rev:	b-1
+dnl	Date:	02/28/2001
+dnl
+dnl	Copyright (c) 1998, 2001 by David M. Warme
+dnl
+dnl ******************************************************************
+dnl
+dnl	Process this file with autoconf to produce a configure script
+dnl	for GeoSteiner.
+dnl
+dnl ******************************************************************
+dnl
+dnl	Modification Log:
+dnl
+dnl	a-1:	12/20/98	warme
+dnl		: Created.
+dnl	a-2:	08/07/97	warme
+dnl		: Added check for bison.  This doesn't really work
+dnl		:  the way we would like it to.  We would prefer the
+dnl		:  configuration to FAIL if no bison can be found!
+dnl	b-1:	02/28/2001	warme
+dnl		: Changes for 3.1 release.  Added checks for -lpthread,
+dnl		:  -ffloat-store and Intel floating point precision
+dnl		:  fix, GMP, and stderr being an lvalue.
+dnl
+dnl ******************************************************************
+dnl
+AC_INIT(steiner.h)
+
+dnl This is where you set the software version number!
+GEOSTEINER_VERSION="3.1"
+
+AC_SUBST(GEOSTEINER_VERSION)
+AC_DEFINE_UNQUOTED(GEOSTEINER_VERSION_STRING, "$GEOSTEINER_VERSION")
+
+AC_PREFIX_DEFAULT(/usr/local)
+
+AC_CONFIG_HEADER(config.h)
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+AC_PROG_YACC
+AC_PROG_LEX
+AC_PROG_MAKE_SET
+
+dnl Make sure we have maximum compatibility with lex when using flex!
+if test "$LEX" = "flex"; then LEX='flex -l'; fi
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+AC_TYPE_SIGNAL
+
+dnl Check for system header files we could use...
+AC_CHECK_HEADERS(sys/utsname.h)
+AC_HEADER_STDC
+
+dnl Check if -ffloat-store (or some other remedy) is needed...
+AC_CHECK_GCC_FLOAT_STORE
+
+dnl Determine whether Unix CPU time stuff is available.
+AC_CACHE_CHECK(for times() and CLK_TCK,
+	ac_cv_header_unix_cpu_time,
+AC_TRY_COMPILE(
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/times.h>
+#include <time.h>
+, clock_t		ticks = CLK_TCK;
+  clock_t		total;
+  struct tms		t;
+
+	times (&t);
+	total = t.tms_utime + t.tms_stime + t.tms_cutime + t.tms_cstime;
+	
+, ac_cv_header_unix_cpu_time=yes, ac_cv_header_unix_cpu_time=no))
+
+if test $ac_cv_header_unix_cpu_time = yes; then
+	AC_DEFINE(UNIX_CPU_TIME)
+fi
+
+dnl Determine whether the uname function works.
+AC_CACHE_CHECK(for working uname function,
+	ac_cv_func_uname_works,
+AC_TRY_COMPILE(
+#include <sys/utsname.h>
+, struct utsname	un;
+  int			total;
+
+	uname (&un);
+	total = *un.sysname
+	      + *un.nodename
+	      + *un.release
+	      + *un.version
+	      + *un.machine;
+	printf ("%d\n", total);
+, ac_cv_func_uname_works=yes, ac_cv_func_uname_works=no))
+
+if test $ac_cv_func_uname_works = yes; then
+	AC_DEFINE(UNAME_FUNCTION_WORKS)
+fi
+
+dnl Check if popen and pclose are available.
+AC_CHECK_FUNCS(popen pclose)
+
+dnl Check for the uname command.
+AC_PATH_PROG(ac_cv_prog_uname_full_pathname, uname)
+
+if test -n "$ac_cv_prog_uname_full_pathname"
+then
+  AC_DEFINE_UNQUOTED(UNAME_PATH, "$ac_cv_prog_uname_full_pathname")
+fi
+
+dnl Check if stderr can be used as an lvalue...
+AC_CACHE_CHECK(if stderr is an lvalue, ac_cv_stderr_is_lvalue,
+  AC_TRY_LINK([#include <stdio.h>
+], [
+	FILE *		fp1;
+	FILE *		fp2;
+	fp1 = stderr;
+	fp2 = fopen ("/dev/null", "w");
+	stderr = fp2;
+
+	fprintf (stderr, "Discarded output\n");
+
+	stderr = fp1;
+	fclose (fp2);
+],
+ ac_cv_stderr_is_lvalue=yes,
+   ac_cv_stderr_is_lvalue=no))
+
+if test "$ac_cv_stderr_is_lvalue" = "yes"
+then
+	AC_DEFINE(HAVE_STDERR_IS_LVALUE)
+fi
+
+# Override the cached CPLEX settings if environment vars are set!
+if test -n "$CPLEX_HEADER"
+then
+	if test ! -r "$CPLEX_HEADER"
+	then
+		AC_MSG_ERROR(File given by \$CPLEX_HEADER unreadable!)
+	fi
+	ac_cv_cplex_header="$CPLEX_HEADER"
+fi
+if test -n "$CPLEX_LIB"
+then
+	if test ! -r "$CPLEX_LIB"
+	then
+		AC_MSG_ERROR(File given by \$CPLEX_LIB unreadable!)
+	fi
+	ac_cv_cplex_lib="$CPLEX_LIB"
+fi
+
+dnl See if the user has specified --with-cplex=no to override.
+AC_ARG_WITH(cplex,
+[	--with-cplex=no         Do not use CPLEX, even if available],
+if test "$withval" = no
+then
+	with_cplex=no
+	# Expunge cplex from the cache!
+	ac_cv_cplex_header=''
+	ac_cv_cplex_lib=''
+else
+	if test "$withval" != yes
+	then
+		echo "Arg to --with-cplex must be yes or no!" 1>&2
+		exit 1
+	fi
+	with_cplex=yes
+fi
+)
+
+if test "$with_cplex" != no
+then
+	# Look for the cplex command in the path.  The header and library are
+	# often in the same directory as the executable.
+	AC_PATH_PROG(ac_cv_path_cplex, cplex)
+	cplex_dir='.'
+	if test -n "$ac_cv_path_cplex"
+	then
+		[cplex_dir="`echo $ac_cv_path_cplex | sed 's%/[^/]*$%%'`"]
+	fi
+
+	cpx_hdr_dirs="$cplex_dir /usr/include /usr/local/include"
+	cpx_lib_dirs="$cplex_dir /usr/lib /usr/ccs/lib /usr/local/lib"
+
+	# Look for cplex.h
+	AC_CACHE_CHECK(for cplex.h, ac_cv_cplex_header,
+	  AC_FIND_FILE(ac_cv_cplex_header, cplex.h, -r, $cpx_hdr_dirs)
+	)
+
+	# Look for libcplex.a
+	AC_CACHE_CHECK(for libcplex.a, ac_cv_cplex_lib,
+	  AC_FIND_FILE(ac_cv_cplex_lib, libcplex.a, -r, $cpx_lib_dirs)
+	)
+
+	if test -z "$ac_cv_cplex_header" || test -z "$ac_cv_cplex_lib"
+	then
+		# Start looking for CPLEX version 3 stuff...
+		# Look for cpxdefs.inc
+		AC_CACHE_CHECK(for cpxdefs.inc, ac_cv_cplex_header,
+		  AC_FIND_FILE(ac_cv_cplex_header, cpxdefs.inc, -r,
+				$cpx_hdr_dirs)
+		)
+
+		# Look for cplex.a
+		AC_CACHE_CHECK(for cplex.a, ac_cv_cplex_lib,
+		  AC_FIND_FILE(ac_cv_cplex_lib, cplex.a, -r,
+				$cpx_lib_dirs)
+		)
+	fi
+
+	# We assume at this point, the variables ac_cv_cplex_header and
+	# ac_cv_cplex_lib have been set to the absolute pathnames of the
+	# appropriate files, if they are available.
+	#
+	# The next thing to do is determine the version number of the
+	# cplex being referenced, putting it in ac_cv_cplex_version.
+	# Note: we use the version number in the header and assume that
+	# the library matches!
+
+dnl A macro to determine the CPLEX version number from the cplex header
+dnl file...
+define(AC_DETECT_CPLEX_VERSION,
+[	cpxh="$ac_cv_cplex_header"
+	hdrname="`echo $cpxh | sed 's@^.*/@@'`"
+	if test "$hdrname" = "cpxdefs.inc"
+	then
+		ac_cv_cplex_version=30
+	else
+		vers="`grep Version <$cpxh | head -1 | \
+			sed 's@^.*Version[[	 ]]*@@' | \
+			sed 's@\([[0-9]][[0-9]]*\)\.\([[0-9]]\).*[$]@\1\2@'`"
+		ac_cv_cplex_version="$vers"
+	fi
+])
+
+	if test -n "$ac_cv_cplex_header" && \
+	   test -r "$ac_cv_cplex_header" && \
+	   test -n "$ac_cv_cplex_lib"
+	then
+	  # We have both a header and a library.  Now we need the version.
+	  AC_MSG_CHECKING([cplex version number])
+	  if test -n "$CPLEX_HEADER" || test -n "$CPLEX_LIB"
+	  then
+		# User overrode, don't believe the cached value!
+		AC_DETECT_CPLEX_VERSION
+	  else
+		AC_CACHE_VAL(ac_cv_cplex_version, [AC_DETECT_CPLEX_VERSION])
+	  fi
+	  AC_MSG_RESULT($ac_cv_cplex_version)
+	fi
+fi
+
+# Decide (finally) which LP solver to use!
+
+if test "$with_cplex" != no && \
+   test -n "$ac_cv_cplex_header" && \
+   test -r "$ac_cv_cplex_header" && \
+   test -n "$ac_cv_cplex_lib" && \
+   test -r "$ac_cv_cplex_lib" && \
+   test -n "$ac_cv_cplex_version"
+then
+	# We have decided to use cplex!
+	[hdrdir="`echo $ac_cv_cplex_header | sed 's%/[^/]*$%%'`"]
+
+	LP_PKG=cplex
+	LP_CFLAGS="-I$hdrdir"
+	LP_DEPS="$ac_cv_cplex_header"
+	LP_LIBS="$ac_cv_cplex_lib"
+	AC_DEFINE_UNQUOTED(CPLEX, $ac_cv_cplex_version)
+
+	# Check if we need to use -lpthread
+	AC_CPLEX_CHECK_LIBPTHREAD
+	if test "$ac_cv_cplex_libpthread" = yes
+	then
+		LP_LIBS="${LP_LIBS} -lpthread"
+	fi
+else
+	# We are unable to use cplex.  Use lp_solve instead.
+	if (test -n "$ac_cv_cplex_header" || \
+	    test -n "$ac_cv_cplex_lib" || \
+	    test -n "$ac_cv_prog_cplex") && \
+	   test "$with_cplex" != no
+	then
+		# Warn user that we are falling back to lp_solve!
+		AC_MSG_WARN(CPLEX not completely found -- using lp_solve instead...)
+	fi
+	LP_PKG=lp_solve
+	LP_CFLAGS='-I$(LP_SOLVE_DIR)'
+	LP_DEPS='$(LP_SOLVE_DIR)/lpkit.h'
+	LP_LIBS='$(LP_SOLVE_DIR)/libLPS.a'
+	AC_DEFINE(LPSOLVE)
+fi
+
+AC_SUBST(LP_PKG)
+AC_SUBST(LP_DEPS)
+AC_SUBST(LP_LIBS)
+AC_SUBST(LP_CFLAGS)
+
+dnl Permit the user to specify --with-machine=string to set the
+dnl machine description string.  This #define's MACHDESC to
+dnl be a C string constant in config.h.
+define_machdesc=no
+AC_ARG_WITH(machine,
+[	--with-machine=string   Force machine description string],
+ ac_cv_machine_description_string="$withval"
+ define_machdesc=yes,
+[if test -n "$ac_cv_machine_description_string"
+ then
+   define_machdesc=yes
+ fi
+])
+
+if test $define_machdesc = yes
+then
+  AC_DEFINE_UNQUOTED(MACHDESC, "${ac_cv_machine_description_string}")
+fi
+
+dnl Permit the user to specify environment variables that give
+dnl the location of the GNU GMP header and library files.
+dnl If the user specifies --with-gmp=no, then ignore these environment
+dnl vars.
+
+# Override the cached GMP settings if environment vars are set!
+if test -n "$GMP_HEADER"
+then
+	if test ! -r "$GMP_HEADER"
+	then
+		AC_MSG_ERROR(File given by \$GMP_HEADER unreadable!)
+	fi
+	ac_cv_gmp_header="$GMP_HEADER"
+fi
+if test -n "$GMP_LIB"
+then
+	if test ! -r "$GMP_LIB"
+	then
+		AC_MSG_ERROR(File given by \$GMP_LIB unreadable!)
+	fi
+	ac_cv_gmp_lib="$GMP_LIB"
+fi
+
+dnl See if the user has specified --with-gmp=no to override.
+AC_ARG_WITH(gmp,
+[	--with-gmp=no         Do not use GNU GMP, even if available],
+if test "$withval" = no
+then
+	with_gmp=no
+	# Expunge GMP from the cache!
+	ac_cv_gmp_header=''
+	ac_cv_gmp_lib=''
+else
+	if test "$withval" != yes
+	then
+		echo "Arg to --with-gmp must be yes or no!" 1>&2
+		exit 1
+	fi
+	with_gmp=yes
+fi
+)
+
+if test -n "$ac_cv_gmp_header" && test -n "$ac_cv_gmp_lib" && \
+   test "$with_gmp" != no
+then
+	GMP_INCLUDE_DIR="`echo $ac_cv_gmp_header | sed -e 's@[[^/]]*$@@' -e 's@/$@@'`"
+	if test -z "$GMP_INCLUDE_DIR"; then GMP_INCLUDE_DIR='.'; fi
+	GMP_CFLAGS='-I$(GMP_INCLUDE_DIR)'
+	GMP_LIBS="$ac_cv_gmp_lib"
+	AC_DEFINE(HAVE_GMP)
+fi
+
+AC_SUBST(GMP_INCLUDE_DIR)
+AC_SUBST(GMP_CFLAGS)
+AC_SUBST(GMP_LIBS)
+
+dnl these two lines are added by AC_OUTPUT, but I need them to
+dnl expand the prefix and exec_prefix variables
+test "x$prefix" = xNONE && prefix=$ac_default_prefix
+test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
+
+dnl C macro variable expansion
+AC_DEFINE_EXPAND_VALUE(INSTALLDIR_PREFIX, $prefix)
+AC_DEFINE_EXPAND_VALUE(INSTALLDIR_EXEC_PREFIX, $exec_prefix)
+AC_DEFINE_EXPAND_VALUE(INSTALLDIR_BINDIR, $bindir)
+AC_DEFINE_EXPAND_VALUE(INSTALLDIR_DATADIR, $datadir)
+AC_DEFINE_EXPAND_VALUE(INSTALLDIR_LIBDIR, $libdir)
+AC_DEFINE_EXPAND_VALUE(INSTALLDIR_LIBEXECDIR, $libexecdir)
+
+AC_OUTPUT(Makefile lp_solve_2.3/Makefile,
+	echo timestamp >stamp-config-h
+)

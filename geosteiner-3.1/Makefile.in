@@ -1,0 +1,649 @@
+#***********************************************************************
+#
+#	File:	Makefile.in
+#	Rev:	c-2
+#	Date:	02/28/2001
+#
+#	Copyright (c) 1993, 2001 by David M. Warme
+#
+#***********************************************************************
+#
+#	Makefile for GeoSteiner.
+#
+#***********************************************************************
+#
+#	Modification Log:
+#
+#	a-1:	02/20/93	warme
+#		: Created.
+#	b-1:	11/14/96	warme
+#		: Renamed and split some files.
+#		: General cleanup for release.
+#	c-1:	12/20/98	warme
+#		: Now using GNU autoconf.
+#	c-2:	02/28/2001	warme
+#		: Changes for 3.1 release.
+#		: Support for GMP, new targets, new/renamed files,
+#		:  updated dependencies, use explicit dependencies for
+#		:  building the lp_solve subdir.
+#		: Expand indirect includes in dependencies so that
+#		:  we never have to "touch" any .h files.
+#
+#***********************************************************************
+#
+
+# The subdir containing the version of lp_solve we use.
+LP_SOLVE_DIR = lp_solve_2.3
+
+# This program can work with either of two different LP solvers:
+# CPLEX (a high quality commercial product) or lp_solve (public domain).
+# Variables that depend upon the LP solver used.
+
+LP_PKG = @LP_PKG@
+LP_CFLAGS = @LP_CFLAGS@
+LP_DEPS = @LP_DEPS@
+LP_LIBS = @LP_LIBS@
+@SET_MAKE@
+
+GCC_FLOAT_STORE = @GCC_FLOAT_STORE@
+
+GMP_INCLUDE_DIR = @GMP_INCLUDE_DIR@
+GMP_CFLAGS = @GMP_CFLAGS@
+GMP_LIBS = @GMP_LIBS@
+
+# Configure the proper C compiler and optimizer/debug options
+# DEBUG_FLAGS = -g
+
+GEOSTEINER_VERSION = @GEOSTEINER_VERSION@
+
+# Installation directories:
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+datadir = @datadir@
+
+# Make support
+
+SHELL = /bin/sh
+
+
+# Various Programs we use
+
+CC = @CC@
+OPTFLAGS = @CFLAGS@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = $(INSTALL) -m 755
+INSTALL_DATA = $(INSTALL) -m 644
+
+# Should not need to change anything below here...
+
+CFLAGS = $(OPTFLAGS) $(DEBUG_FLAGS) $(GCC_FLOAT_STORE) $(LP_CFLAGS) $(GMP_CFLAGS)
+
+TARGETS = \
+	bb \
+	dumpfst \
+	efst \
+	fst2graph \
+	kr \
+	lib_points \
+	plotfst \
+	prunefst \
+	rand_points \
+	rfst
+
+# Object file sets for each program...
+
+ALL_OBJECTS = \
+	bb.o \
+	bbmain.o \
+	bbsubs.o \
+	bmst.o \
+	bsd.o \
+	btsearch.o \
+	constrnt.o \
+	cpulimit.o \
+	cputime.o \
+	cra.o \
+	cutset.o \
+	cutsubs.o \
+	dsuf.o \
+	dumpfst.o \
+	efst.o \
+	egmp.o \
+	emptyr.o \
+	emst.o \
+	expand.o \
+	flow.o \
+	fst2graph.o \
+	genps.o \
+	greedy.o \
+	io.o \
+	kr.o \
+	lib_points.o \
+	machine.o \
+	mst.o \
+	p1read.o \
+	p1write.o \
+	plotfst.o \
+	prunefst.o \
+	rfst.o \
+	rmst.o \
+	sec2.o \
+	sec_comp.o \
+	sec_heur.o \
+	sll.o \
+	sortints.o \
+	triangle.o \
+	ub.o \
+	utils.o
+
+BB_OBJECTS = \
+	bb.o \
+	bbmain.o \
+	bbsubs.o \
+	constrnt.o \
+	cpulimit.o \
+	cputime.o \
+	cra.o \
+	cutset.o \
+	cutsubs.o \
+	dsuf.o \
+	emptyr.o \
+	emst.o \
+	expand.o \
+	flow.o \
+	genps.o \
+	io.o \
+	mst.o \
+	p1read.o \
+	rmst.o \
+	sec2.o \
+	sec_comp.o \
+	sec_heur.o \
+	sortints.o \
+	triangle.o \
+	ub.o \
+	utils.o
+
+DUMPFST_OBJECTS = \
+	dumpfst.o \
+	io.o \
+	p1read.o \
+	sortints.o \
+	utils.o
+
+EFST_OBJECTS = \
+	bmst.o \
+	bsd.o \
+	cputime.o \
+	dsuf.o \
+	efst.o \
+	egmp.o \
+	emst.o \
+	greedy.o \
+	io.o \
+	machine.o \
+	mst.o \
+	p1read.o \
+	p1write.o \
+	sll.o \
+	sortints.o \
+	triangle.o \
+	utils.o
+
+FST2GRAPH_OBJECTS = \
+	fst2graph.o \
+	cputime.o \
+	io.o \
+	p1read.o \
+	sortints.o \
+	utils.o
+
+KR_OBJECTS = \
+	kr.o \
+	cpulimit.o \
+	cputime.o \
+	dsuf.o \
+	emptyr.o \
+	io.o \
+	genps.o \
+	mst.o \
+	rmst.o \
+	utils.o
+
+PLOTFST_OBJECTS = \
+	cputime.o \
+	genps.o \
+	io.o \
+	p1read.o \
+	plotfst.o \
+	sortints.o \
+	utils.o
+
+PRUNEFST_OBJECTS = \
+	bb.o \
+	bbsubs.o \
+	bmst.o \
+	bsd.o \
+	btsearch.o \
+	constrnt.o \
+	cpulimit.o \
+	cputime.o \
+	cra.o \
+	cutset.o \
+	cutsubs.o \
+	dsuf.o \
+	emptyr.o \
+	emst.o \
+	expand.o \
+	flow.o \
+	genps.o \
+	greedy.o \
+	io.o \
+	machine.o \
+	mst.o \
+	p1read.o \
+	p1write.o \
+	prunefst.o \
+	rmst.o \
+	sec2.o \
+	sec_comp.o \
+	sec_heur.o \
+	sortints.o \
+	triangle.o \
+	ub.o \
+	utils.o
+
+RFST_OBJECTS = \
+	bmst.o \
+	bsd.o \
+	cputime.o \
+	dsuf.o \
+	emptyr.o \
+	io.o \
+	machine.o \
+	mst.o \
+	p1read.o \
+	p1write.o \
+	rfst.o \
+	rmst.o \
+	sortints.o \
+	utils.o
+#
+
+#
+# Top-level dependencies...
+#
+
+all:	$(TARGETS)
+
+bb : $(LP_LIBS) $(BB_OBJECTS)
+	$(CC) -o bb $(BB_OBJECTS) $(LP_LIBS) -lm
+
+dumpfst : $(DUMPFST_OBJECTS)
+	$(CC) -o dumpfst $(DUMPFST_OBJECTS) -lm
+
+efst : $(EFST_OBJECTS)
+	$(CC) -o efst $(EFST_OBJECTS) $(GMP_LIBS) -lm
+
+fst2graph : $(FST2GRAPH_OBJECTS)
+	$(CC) -o fst2graph $(FST2GRAPH_OBJECTS) -lm
+
+kr : $(KR_OBJECTS)
+	$(CC) -o kr $(KR_OBJECTS) -lm
+
+lib_points : lib_points.c steiner.h
+	$(CC) $(CFLAGS) -o lib_points lib_points.c
+
+plotfst : $(PLOTFST_OBJECTS)
+	$(CC) -o plotfst $(PLOTFST_OBJECTS) -lm
+
+prunefst : $(LP_LIBS) $(PRUNEFST_OBJECTS)
+	$(CC) -o prunefst $(PRUNEFST_OBJECTS) $(LP_LIBS) -lm
+
+rand_points : rand_points.c steiner.h
+	$(CC) $(CFLAGS) -o rand_points rand_points.c
+
+rfst : $(RFST_OBJECTS)
+	$(CC) -o rfst $(RFST_OBJECTS) -lm
+
+# How to make the libLPS.a library in the lp-solve subdir...
+$(LP_SOLVE_DIR)/libLPS.a : \
+		$(LP_SOLVE_DIR)/Makefile.in \
+		$(LP_SOLVE_DIR)/Makefile \
+		$(LP_SOLVE_DIR)/lpkit.c \
+		$(LP_SOLVE_DIR)/solve.c \
+		$(LP_SOLVE_DIR)/debug.c \
+		$(LP_SOLVE_DIR)/presolve.c \
+		$(LP_SOLVE_DIR)/hash.c \
+		$(LP_SOLVE_DIR)/lpbinio.c \
+		$(LP_SOLVE_DIR)/lpkit.h \
+		$(LP_SOLVE_DIR)/lpglob.h \
+		$(LP_SOLVE_DIR)/debug.h \
+		$(LP_SOLVE_DIR)/hash.h
+	(cd $(LP_SOLVE_DIR); $(MAKE) libLPS.a)
+
+clean :
+	(cd $(LP_SOLVE_DIR); $(MAKE) clean)
+	-rm -f $(TARGETS) $(ALL_OBJECTS) cplex.log
+
+distclean :
+	(cd $(LP_SOLVE_DIR); $(MAKE) distclean)
+	-rm -f $(TARGETS) $(ALL_OBJECTS)
+	-rm -f Makefile config.cache config.h config.log config.status \
+		stamp-config-h
+
+#
+
+#
+# Rules for installing...
+#
+
+install : mkinstalldirs $(TARGETS) prelude.ps
+	for i in $(TARGETS); do $(INSTALL_PROGRAM) $$i $(bindir); done
+	$(INSTALL_DATA) prelude.ps $(datadir)
+
+mkinstalldirs :
+	for i in $(prefix) $(exec_prefix) $(bindir) $(datadir); \
+	do if [ ! -d $$i ]; then mkdir $$i; fi; done
+
+uninstall :
+	(cd $(bindir) && rm -f $(TARGETS))
+	rm -f $(datadir)/prelude.ps
+#
+
+#
+# Rules and dependencies for reconfiguration...
+#
+
+configure : configure.in aclocal.m4
+	autoconf
+
+config.h : stamp-config-h
+
+stamp-config-h : config.h.in config.status
+	./config.status
+
+Makefile : Makefile.in config.status
+	./config.status
+
+$(LP_SOLVE_DIR)/Makefile : $(LP_SOLVE_DIR)/Makefile.in config.status
+	./config.status
+
+config.status : configure
+	./config.status --recheck
+
+#
+
+#
+# Individual file dependencies
+#
+
+.PRECIOUS: \
+	bb.h \
+	bsd.h \
+	btsearch.h \
+	constrnt.h \
+	cra.h \
+	cutset.h \
+	dsuf.h \
+	efst.h \
+	efuncs.h \
+	emptyr.h \
+	flow.h \
+	genps.h \
+	p1io.h \
+	rfst.h \
+	sec2.h \
+	sec_comp.h \
+	sec_heur.h \
+	steiner.h \
+	triangle.h \
+	ub.h
+
+bb.o : bb.c \
+		bb.h \
+		bbsubs.h \
+		config.h \
+		constrnt.h \
+		cra.h \
+		cutset.h \
+		flow.h \
+		genps.h \
+		p1io.h \
+		sec2.h \
+		sec_comp.h \
+		sec_heur.h \
+		steiner.h \
+		ub.h \
+		$(LP_DEPS)
+
+bbsubs.o : bbsubs.c \
+		bb.h \
+		bbsubs.h \
+		config.h \
+		constrnt.h \
+		steiner.h \
+		ub.h \
+		$(LP_DEPS)
+
+bmst.o : bmst.c \
+		bsd.h \
+		steiner.h
+
+bsd.o : bsd.c \
+		bsd.h \
+		steiner.h
+
+btsearch.o : btsearch.c \
+		btsearch.h \
+		steiner.h
+
+constrnt.o : constrnt.c \
+		bb.h \
+		config.h \
+		constrnt.h \
+		steiner.h \
+		$(LP_DEPS)
+
+cpulimit.o : cpulimit.c \
+		config.h \
+		steiner.h
+
+cputime.o : cputime.c \
+		config.h \
+		steiner.h
+
+cra.o : cra.c \
+		cra.h \
+		steiner.h
+
+cutset.o : cutset.c \
+		bb.h \
+		config.h \
+		constrnt.h \
+		cutset.h \
+		flow.h \
+		sec_comp.h \
+		sec_heur.h \
+		steiner.h \
+		$(LP_DEPS)
+
+cutsubs.o : cutsubs.c \
+		bb.h \
+		config.h \
+		constrnt.h \
+		cutset.h \
+		sec_heur.h \
+		steiner.h \
+		$(LP_DEPS)
+
+dsuf.o : dsuf.c \
+		dsuf.h \
+		steiner.h
+
+dumpfst.o : dumpfst.c \
+		p1io.h \
+		steiner.h
+
+efst.o : efst.c \
+		bsd.h \
+		config.h \
+		p1io.h \
+		efst.h \
+		efuncs.h \
+		steiner.h
+
+egmp.o : egmp.c \
+		bsd.h \
+		config.h \
+		egmp.h \
+		efst.h \
+		steiner.h
+
+emptyr.o : emptyr.c \
+		emptyr.h \
+		steiner.h
+
+emst.o : emst.c \
+		dsuf.h \
+		steiner.h \
+		triangle.h
+
+expand.o : expand.c \
+		bb.h \
+		config.h \
+		constrnt.h \
+		steiner.h \
+		$(LP_DEPS)
+
+flow.o : flow.c \
+		flow.h \
+		steiner.h
+
+fst2graph.o : fst2graph.c \
+		p1io.h \
+		steiner.h
+
+genps.o : genps.c \
+		genps.h \
+		steiner.h
+
+greedy.o : greedy.c \
+		bsd.h \
+		dsuf.h \
+		efuncs.h \
+		steiner.h \
+		triangle.h
+
+io.o : io.c steiner.h
+
+kr.o : kr.c \
+		genps.h \
+		steiner.h
+
+machine.o : machine.c \
+		config.h \
+		steiner.h
+
+mst.o : mst.c \
+		dsuf.h \
+		steiner.h
+
+p1read.o : p1read.c \
+		p1io.h \
+		steiner.h
+
+p1write.o : p1write.c \
+		config.h \
+		p1io.h \
+		steiner.h
+
+plotfst.o : plotfst.c \
+		genps.h \
+		steiner.h
+
+prunefst.o : prunefst.c \
+		bb.h \
+		bsd.h \
+		btsearch.h \
+		config.h \
+		dsuf.h \
+		efuncs.h \
+		emptyr.h \
+		p1io.h \
+		sec_comp.h \
+		steiner.h \
+		$(LP_DEPS)
+
+rfst.o : rfst.c \
+		bsd.h \
+		emptyr.h \
+		p1io.h \
+		rfst.h \
+		steiner.h
+
+rmst.o : rmst.c \
+		dsuf.h \
+		emptyr.h \
+		steiner.h
+
+sec2.o : sec2.c \
+		bb.h \
+		config.h \
+		constrnt.h \
+		flow.h \
+		genps.h \
+		sec2.h \
+		sec_comp.h \
+		sec_heur.h \
+		steiner.h \
+		$(LP_DEPS)
+
+sec_comp.o : sec_comp.c \
+		bb.h \
+		config.h \
+		constrnt.h \
+		dsuf.h \
+		genps.h \
+		sec_comp.h \
+		sec_heur.h \
+		steiner.h \
+		$(LP_DEPS)
+
+sec_heur.o : sec_heur.c \
+		bb.h \
+		config.h \
+		constrnt.h \
+		flow.h \
+		sec_comp.h \
+		sec_heur.h \
+		steiner.h \
+		$(LP_DEPS)
+
+sll.o : sll.c \
+		bsd.h \
+		dsuf.h \
+		efuncs.h \
+		steiner.h \
+		triangle.h
+
+sortints.o : sortints.c \
+		steiner.h
+
+triangle.o : triangle.c \
+		triangle.h
+
+ub.o : ub.c \
+		bb.h \
+		config.h \
+		dsuf.h \
+		steiner.h \
+		ub.h \
+		$(LP_DEPS)
+
+utils.o : utils.c \
+		config.h \
+		steiner.h
