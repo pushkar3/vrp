@@ -1,43 +1,22 @@
-#include "gurobi_c++.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <math.h>
 #include <vector>
+
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+
 using namespace std;
-
-struct point_t {
-	double x, y;
-	double c;
-	point_t() {
-		x = 0.0f;
-		y = 0.0f;
-		c = 0.0f;
-	}
-
-	point_t(double _x, double _y) {
-		x = _x;
-		y = _y;
-		c = 0.0f;
-	}
-
-	double distance_to(point_t p) {
-		double x = p.x - x;
-		double y = p.y - y;
-		return sqrt(x*x + y*y);
-	}
-
-	void print() {
-		cout << x << " " << y << " cost: " << c << endl;
-	}
-};
+using namespace cv;
 
 struct line_t {
-	point_t p[2];
+	Point2f p[2];
 	double m;
 	double b;
+	double length;
 
-	line_t(point_t p1, point_t p2) {
+	line_t(Point2f p1, Point2f p2) {
 		p[0] = p1;
 		p[1] = p2;
 		double _x = p[0].x - p[1].x;
@@ -45,9 +24,10 @@ struct line_t {
 		if (_x != 0) m = fabs(_y/_x);
 		else m = 0.0f;
 		b = p[0].y - m*p[0].x;
+		length = norm(p1-p2);
 	}
 
-	double distance_to(point_t p) {
+	double distance_to(Point2f p) {
 		double nr = fabs(p.y - m*p.x - b);
 		double dr = sqrt(m*m + 1);
 		return (nr/dr);
@@ -59,7 +39,7 @@ struct line_t {
 };
 
 double r = 50.0f;
-vector<point_t> points;
+vector<Point2f> points;
 vector<line_t> lines;
 
 
@@ -68,6 +48,8 @@ int main(int argc, char *argv[]) {
 	int n = 0;
 	cout << "opening " << argv[1] << endl;
 	fstream f(argv[1], fstream::in);
+
+	Mat display(600, 600, CV_8UC1, Scalar(255));
 
 	int i = 0;
 	if(f.is_open()) {
@@ -82,7 +64,10 @@ int main(int argc, char *argv[]) {
 	n = i-1;
 
 	for (int i = 0; i < n; i++) {
-		lines.push_back(line_t(point_t(x_a[i], y_a[i]), point_t(x_b[i], y_b[i])));
+		Point2f start(x_a[i], y_a[i]);
+		Point2f end(x_b[i], y_b[i]);
+		lines.push_back(line_t(start, end));
+		line(display, start, end, Scalar(0));
 	}
 
 	for (int i = 0; i < lines.size(); i++) {
@@ -90,6 +75,23 @@ int main(int argc, char *argv[]) {
 	}
 
 	f.close();
+
+	double r = 50;
+	cout << "r is " << r << endl;
+
+	double h = r*cos(M_PI/3);
+
+	vector<Point2f> pnts;
+	for (int i = 0; i < lines.size(); i++) {
+		while(r < lines[i].length) {
+			pnts.push_back(lines.p[0]+);
+		}
+	}
+
+	imshow("display", display);
+	waitKey(0);
+
 	return 0;
 }
+
 
