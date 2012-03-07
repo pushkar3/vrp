@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 	vector<Point2f> pnts;
 	for (int i = 0; i < lines.size(); i++) {
 		while(r < lines[i].length) {
-			pnts.push_back(lines.p[0]+);
+			//pnts.push_back(lines.p[0]+);
 		}
 	}
 
