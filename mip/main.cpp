@@ -9,50 +9,59 @@ using namespace std;
 int main(int argc, char *argv[]) {
 	GRBEnv* env = 0;
 	GRBVar** x = 0;
-	GRBVar* y = 0;
-	GRBVar* z = 0;
-	GRBVar** xc = 0;
-	GRBVar* yc = 0;
-	GRBVar* zc = 0;
+
+	int c[6];
 
 	try {
 		const int n = 6;
-		double c[] = { 1, 0, 1, 1, 2, 2 };
-		int x_adj[][n] = {
-			{	0, 1, 0, 0, 0, 0 },
-			{	1, 0, 1, 1, 0, 0 },
-			{	0, 1, 0, 0, 0, 0 },
-			{	0, 1, 0, 0, 1, 1 },
-			{	0, 0, 0, 1, 0, 0 },
-			{	0, 0, 0, 1, 0, 0 }
+		double c[][n] = {
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 }
 		};
+		int x_adj[][n] = {
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 },
+			{ 0, 0, 0, 0, 0, 0 }
+		};
+
+		x_adj[1-1][3-1] = 1;
+		x_adj[3-1][4-1] = 1;
+		x_adj[2-1][4-1] = 1;
+		x_adj[4-1][5-1] = 1;
+		x_adj[5-1][6-1] = 1;
+
+		for (int i = 0; i < n; i++) {
+			for (int j = i; j < n; j++) {
+				if (x_adj[i][j] == 1 || x_adj[j][i] == 1) {
+					x_adj[i][j] = x_adj[j][i] = 1;
+					c[i][j] = c[j][i] = 1;
+				}
+				else {
+					c[i][j] = c[j][i] = 100;
+				}
+			}
+		}
 
 		env = new GRBEnv();
 		GRBModel model = GRBModel(*env);
-		model.set(GRB_StringAttr_ModelName, "facility");
-
-		y = model.addVars(n, GRB_BINARY);
-		z = model.addVars(n, GRB_BINARY);
-		model.update();
-		for (int p = 0; p < n; ++p) {
-			ostringstream yname, zname;
-			yname << "y" << p;
-			zname << "z" << p;
-			y[p].set(GRB_DoubleAttr_Obj, c[p]);
-			y[p].set(GRB_StringAttr_VarName, yname.str());
-			z[p].set(GRB_DoubleAttr_Obj, 0);
-			z[p].set(GRB_StringAttr_VarName, zname.str());
-		}
+		model.set(GRB_StringAttr_ModelName, "MST");
 
 		x = new GRBVar*[n];
-		for (int w = 0; w < n; ++w) {
-			x[w] = model.addVars(n, GRB_BINARY);
+		for (int i = 0; i < n; i++) {
+			x[i] = model.addVars(n, GRB_BINARY);
 			model.update();
-			for (int p = 0; p < n; ++p) {
+			for (int j = i+1; j < n; j++) {
 				ostringstream xname;
-				xname << "x" << p << "." << w;
-				x[w][p].set(GRB_DoubleAttr_Obj, 0);
-				x[w][p].set(GRB_StringAttr_VarName, xname.str());
+				xname << "x" << i+1 << "." << j+1;
+				x[i][j].set(GRB_DoubleAttr_Obj, c[i][j]);
+				x[i][j].set(GRB_StringAttr_VarName, xname.str());
 			}
 		}
 
@@ -61,56 +70,56 @@ int main(int argc, char *argv[]) {
 		model.update();
 
 		// Constraints
-		ostringstream cname;
-		cname << "TotalRobots" << n;
-		GRBLinExpr y_total = 0;
-		for (int p = 0; p < n; ++p) {
-			y_total += y[p];
-		}
-		model.addConstr(y_total >= 4, cname.str());
-
+		// Sum of all edges = n-1
+		ostringstream x_allString;
+		GRBLinExpr x_allExpr = 0;
+		x_allString << "x_all";
 		for (int i = 0; i < n; i++) {
 			for (int j = i+1; j < n; j++) {
-				ostringstream x_dir_s;
-				GRBLinExpr x_dir = 0;
-				x_dir = x[i][j] - x[j][i];
-				x_dir_s << "xdir" << i << j;
-				//model.addConstr(x_dir == 0, x_dir_s.str());
+				x_allExpr += x[i][j];
 			}
 		}
+		model.addConstr(x_allExpr == n-1, x_allString.str());
 
-		for (int i = 0; i < n; i++) {
-			ostringstream yz;
-			yz << "yz" << i << i;
-			model.addConstr(y[i]+z[i] == 1, yz.str());
-		}
+		// Subtour Elimination Constraints
+		ostringstream subTourString;
+		GRBLinExpr subTourExpr;
+		subTourString << "subtour1";
 
-		for (int i = 0; i < n; i++) {
-			for (int j = i+1; j < n; j++) {
-				if(x_adj[i][j] != 0) {
-					GRBLinExpr yz1 = 0;
-					GRBLinExpr yz2 = 0;
+		subTourExpr += x[0][2];
+		subTourExpr += x[2][3];
+		//model.addConstr(subTourExpr <= 1, subTourString.str());
+//		for (int j = 0; j < n; j++)
+//			c[j] = 0;
+//
+//		c[0] = 1;
+//
+//		while (1) {
+//			ostringstream subTourString;
+//			GRBLinExpr subTourExpr;
+//			for (int i = 0; i < n; i++) {
+//				printf("%d ", c[i]);
+//			}
+//			printf("\n");
+//
+//			int j = 0;
+//			while (c[j] == n) {
+//				c[j] = 0;
+//				j++;
+//			}
+//
+//			c[j]++;
+//
+//			if (j == n-1)
+//				break;
+//
+//		}
 
-					yz1 = y[i] + z[j] - x[j][i];
-					yz2 = -z[i] + x[i][j];
-
-					ostringstream yz1_s, yz2_s;
-					yz1_s << "yz1 " << i << i << j;
-					yz2_s << "yz2 " << i << i << j;
-					model.addConstr(yz1 >= 0, yz1_s.str());
-					model.addConstr(yz2 == 0, yz2_s.str());
-
-				}
-			}
-		}
-
-		// Initialization
-		model.addConstr(z[1] == 1, "z1");
 
 		model.update();
 		model.write("prob.lp");
 
-
+		// Initialization
 //		// Guess at the starting point: close the plant with the highest
 //		// fixed costs; open all others
 //		// First, open all plants
@@ -142,17 +151,12 @@ int main(int argc, char *argv[]) {
 
 		// Print solution
 		cout << "\nTOTAL COSTS: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
-		cout << "SOLUTION:" << endl;
-		for (int p = 0; p < n; ++p) {
-			cout << p << "\t" << y[p].get(GRB_DoubleAttr_X) << "  " << z[p].get(GRB_DoubleAttr_X) << endl;
-		}
-
 		cout << endl;
 		for (int i = 0; i < n; i++) {
-			for (int j = 0; j < n; j++) {
-				cout << x[i][j].get(GRB_DoubleAttr_X) << "\t";
+			for (int j = i; j < n; j++) {
+				if (x[i][j].get(GRB_DoubleAttr_X) > 0)
+					cout << i+1 << ", " << j+1  << " is " << x[i][j].get(GRB_DoubleAttr_X) << endl;
 			}
-			cout << endl;
 		}
 
 
@@ -163,8 +167,6 @@ int main(int argc, char *argv[]) {
 		cout << "Exception during optimization" << endl;
 	}
 
-	delete[] y;
-	delete[] z;
 	delete env;
 	return 0;
 }
