@@ -1,4 +1,5 @@
 #include "gurobi_c++.h"
+#include <stdlib.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -219,41 +220,56 @@ public:
 	}
 };
 
+int gridSize = 3;
+int gridPos(int r, int c) {
+	return c+gridSize*r;
+}
+
 int main(int argc, char *argv[]) {
 	GRBEnv* env = 0;
 	GRBVar* x = 0;
+	GRBVar* y = 0;
 
-	int gridSize = 3;
+	int nRobots = 3;
 	Graph g;
+
+	vector<int> terminal_x, terminal_y;
+	terminal_x.push_back(0);
+	terminal_y.push_back(0);
 
 	for(int i = 0; i < gridSize; i++) {
 		for(int j = 0; j < gridSize; j++) {
-			int c = i+j;
+			int c = 0;
+			for (int k = 0; k < terminal_x.size(); k++) {
+				c += abs(terminal_x[k]-i)+abs(terminal_y[k]-j);
+			}
+			if (c == 0)
+				c = 100; // robot
 			g.addNode(c);
 		}
 	}
 
 	for(int i = 0; i < gridSize; i++) {
 		for(int j = 0; j < gridSize; j++) {
-			int c = j+gridSize*i;
+			int c = gridPos(i, j);
 
 			if (j != 0) {
-				int l = j-1+gridSize*i;
+				int l = gridPos(i, j-1);
 				g.addEdge(c, l, 1);
 			}
 
 			if (j != gridSize-1) {
-				int r = j+1+gridSize*i;
+				int r = gridPos(i, j+1);
 				g.addEdge(c, r, 1);
 			}
 
 			if (i != 0) {
-				int u = j+gridSize*(i-1);
+				int u = gridPos(i-1, j);
 				g.addEdge(c, u, 1);
 			}
 
 			if (i != gridSize-1) {
-				int d = j+gridSize*(i+1);
+				int d = gridPos(i+1, j);
 				g.addEdge(c, d, 1);
 			}
 		}
@@ -283,10 +299,28 @@ int main(int argc, char *argv[]) {
 			x[i].set(GRB_StringAttr_VarName, edgeName);
 		}
 
+		y = model.addVars(g.getTotalNodes(), GRB_BINARY);
+		model.update();
+
+		for (i = 0, itN = g.node.begin(); itN != g.node.end(); ++itN, i++) {
+			string nodeName = (*itN).first;
+			int nodeValue = (*itN).second.value;
+			y[i].set(GRB_DoubleAttr_Obj, nodeValue);
+			y[i].set(GRB_StringAttr_VarName, nodeName);
+		}
+
 		model.set(GRB_IntAttr_ModelSense, 1);
 		model.update();
 
 		// Constraints
+		// Total number of robots
+		ostringstream nodeSumString;
+		GRBLinExpr nodeSumExpr = 0;
+		for (i = 0; i < g.getTotalNodes(); i++) {
+			nodeSumExpr += y[i];
+		}
+		model.addConstr(nodeSumExpr == nRobots, nodeSumString.str());
+
 		// Sum of all edges = n-1
 		ostringstream edgeSumString;
 		GRBLinExpr edgeSumExpr = 0;
@@ -441,6 +475,12 @@ int main(int argc, char *argv[]) {
 		// Print solution
 		cout << "\nTOTAL COSTS: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
 		cout << "Solution:" << endl;
+		cout << "Robot Positions:" << endl;
+		for (int i = 0; i < g.getTotalNodes(); i++) {
+			if (y[i].get(GRB_DoubleAttr_X) > 0)
+				cout << y[i].get(GRB_StringAttr_VarName) << endl;
+		}
+		cout << "Edge Positions:" << endl;
 		for (int i = 0; i < g.getTotalEdges(); i++) {
 			if (x[i].get(GRB_DoubleAttr_X) > 0)
 				cout << x[i].get(GRB_StringAttr_VarName) << endl;
