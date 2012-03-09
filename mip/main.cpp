@@ -52,11 +52,15 @@ public:
 class Edge {
 public:
 	string name;
+	string nameFull;
 	string i, j;
 	int cost;
 
-	Edge(string _name, int _cost) {
+	Edge() {}
+
+	Edge(string _name, string _nameFull, int _cost) {
 		name = _name;
+		nameFull = _nameFull;
 		cost = _cost;
 	}
 
@@ -88,6 +92,12 @@ public:
 		return &(node[index.str()]);
 	}
 
+	Edge* getEdge(int i){
+		ostringstream index;
+		index << "e" << i;
+		return &(edge[index.str()]);
+	}
+
 	void setNodeAsRobot(string nodeIndex) {
 		node[nodeIndex].setRobot(1);
 		nSteinerNodes--;
@@ -107,9 +117,10 @@ public:
 		Node* nodei = getNode(i);
 		Node* nodej = getNode(j);
 
-		ostringstream edgeName;
-		edgeName << "x" << j << "." << i;
-		Edge e(edgeName.str(), c);
+		ostringstream edgeName, edgeNameFull;
+		edgeName << "e" << edge.size();
+		edgeNameFull << "x" << j << "." << i;
+		Edge e(edgeName.str(), edgeNameFull.str(), c);
 		e.setNodes(nodei, nodej);
 		edge.insert(pair<string, Edge> (edgeName.str(), e));
 
@@ -131,7 +142,7 @@ public:
 	void listAllEdges() {
 		map<string, Edge>::iterator it;
 		for (it = edge.begin(); it != edge.end(); ++it) {
-			cout << (*it).first << "\t " << (*it).second.cost << endl;
+			cout << (*it).first << "\t " << (*it).second.nameFull << endl;
 		}
 	}
 
@@ -149,6 +160,34 @@ public:
 
 	int getTotalEdges() {
 		return edge.size();
+	}
+
+	// Assume nodes are unique
+	vector<int> getEdgesFromSubset(vector<int> nodes, int subTour) {
+		vector<int> _edgesSubTour;
+		vector<int> _edgesCut;
+		vector<string> _nodes;
+
+		for (int i = 0; i < nodes.size(); i++) {
+			Node* n = getNode(nodes[i]);
+			_nodes.push_back(n->name);
+		}
+
+		map<string, Edge>::iterator it;
+		int j = 0;
+		for (it = edge.begin(); it != edge.end(); ++it, j++) {
+			Edge e = (*it).second;
+			int vertices = 0;
+			for (int i = 0; i < _nodes.size(); i++) {
+				if(e.i.compare(_nodes[i]) == 0) vertices++;
+				if(e.j.compare(_nodes[i]) == 0) vertices++;
+			}
+			if(vertices == 1) _edgesCut.push_back(j);
+			if(vertices == 2) _edgesSubTour.push_back(j);
+		}
+
+		if(subTour) return _edgesSubTour;
+		else return _edgesCut;
 	}
 };
 
@@ -204,9 +243,12 @@ int main(int argc, char *argv[]) {
 		model.addConstr(edgeSumExpr == g.getTotalNodes() - 1, edgeSumString.str());
 
 		// Subtour Elimination Constraints
-		/*
-		vector<Node> nodeSubset;
-		nodeSubset = g.node;
+		vector<int> nodeSubset;
+		nodeSubset.push_back(0);
+		nodeSubset.push_back(1);
+		nodeSubset.push_back(2);
+		nodeSubset.push_back(3);
+		nodeSubset.push_back(4);
 
 		int c_n = 2;
 		while (c_n < nodeSubset.size()) {
@@ -215,7 +257,7 @@ int main(int argc, char *argv[]) {
 			for (int j = 0; j < c_n; j++)
 				c[j] = 0;
 
-			c[c_n] = n;
+			c[c_n] = g.getTotalNodes();
 
 			int j = 0;
 			while (1) {
@@ -229,13 +271,19 @@ int main(int argc, char *argv[]) {
 				if (!skip) {
 					ostringstream subTourString;
 					GRBLinExpr subTourExpr;
-					subTourString << "c";
-					for (int i = 0; i < c_n; i++) {
-						int _i = nodeSubset[i].value;
-						subTourString << "." << _i;
-						subTourExpr += x[_i];
+
+					vector<int> _nodes;
+					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
+					vector<int> _edges = g.getEdgesFromSubset(_nodes, 1);
+
+					subTourString << "s";
+					for(int i = 0; i < _edges.size(); i++) {
+						subTourString << "." << _edges[i];
+						subTourExpr += x[_edges[i]];
 					}
-					model.addConstr(subTourExpr <= c_n - 1, subTourString.str());
+
+					if(_edges.size() > 0)
+						model.addConstr(subTourExpr <= c_n - 1, subTourString.str());
 				}
 
 				j = 0;
@@ -249,10 +297,61 @@ int main(int argc, char *argv[]) {
 			}
 			c_n++;
 		}
-*/
-		// Cutset Constraints
 
 		model.update();
+
+		// Cutset Constraints
+		c_n = 1;
+		while (c_n < nodeSubset.size()) {
+			int c[c_n + 1];
+
+			for (int j = 0; j < c_n; j++)
+				c[j] = 0;
+
+			c[c_n] = g.getTotalNodes();
+
+			int j = 0;
+			while (1) {
+
+				int skip = 0;
+				for (int i = 0; i < c_n; i++) {
+					if (c[i] == c[i + 1])
+						skip = 1;
+				}
+
+				if (!skip) {
+					ostringstream cutSetString;
+					GRBLinExpr cutSetExpr;
+
+					vector<int> _nodes;
+					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
+					vector<int> _edges = g.getEdgesFromSubset(_nodes, 0);
+
+					cutSetString << "c";
+					for(int i = 0; i < _edges.size(); i++) {
+						cutSetString << "." << _edges[i];
+						cutSetExpr += x[_edges[i]];
+					}
+
+					if(_edges.size() > 0)
+						model.addConstr(cutSetExpr >= 1, cutSetString.str());
+				}
+
+				j = 0;
+				while (c[j] == c[j + 1]) {
+					c[j] = 0;
+					j++;
+				}
+				c[j]++;
+				if (j == c_n)
+					break;
+			}
+			c_n++;
+		}
+
+		model.update();
+
+
 		model.write("prob.lp");
 
 		// Initialization
