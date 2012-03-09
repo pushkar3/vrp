@@ -36,6 +36,9 @@ public:
 	}
 
 	void setNeighbor(Node* n) {
+		for (int i = 0; i < neighbor.size(); i++)
+			if(n->name.compare(neighbor[i]) == 0)
+				return;
 		neighbor.push_back(n->name);
 	}
 
@@ -77,6 +80,10 @@ public:
 	map<string, Edge> edge;
 	int nSteinerNodes;
 
+	Graph() {
+		nSteinerNodes = 0;
+	}
+
 	Graph(int n_nodes) {
 		for (int i = 0; i < n_nodes; i++) {
 			ostringstream nodeName;
@@ -98,6 +105,15 @@ public:
 		return &(edge[index.str()]);
 	}
 
+	Edge* getEdge(string fullName) {
+		map<string, Edge>::iterator it;
+		for (it = edge.begin(); it != edge.end(); ++it) {
+			if(fullName.compare((*it).second.nameFull) == 0)
+				return &((*it).second);
+		}
+		return NULL;
+	}
+
 	void setNodeAsRobot(string nodeIndex) {
 		node[nodeIndex].setRobot(1);
 		nSteinerNodes--;
@@ -108,33 +124,45 @@ public:
 		nSteinerNodes++;
 	}
 
+	void addNode(int c) {
+		ostringstream nodeName;
+		nodeName << "y" << node.size();
+		Node n(nodeName.str());
+		n.setValue(c);
+		node.insert(pair<string, Node>(nodeName.str(), n));
+		nSteinerNodes++;
+	}
+
 	void addEdge(int i, int j, int c) {
 		if (i == j) return;
 		if (j > i) {
 			int t = i; i = j; j = t;
 		}
+		if(i < 0 || j < 0 || i >= node.size()
+				|| j >= node.size()) return;
 
 		Node* nodei = getNode(i);
 		Node* nodej = getNode(j);
 
+		nodei->setNeighbor(nodej);
+		nodej->setNeighbor(nodei);
+
 		ostringstream edgeName, edgeNameFull;
 		edgeName << "e" << edge.size();
 		edgeNameFull << "x" << j << "." << i;
-		Edge e(edgeName.str(), edgeNameFull.str(), c);
-		e.setNodes(nodei, nodej);
-		edge.insert(pair<string, Edge> (edgeName.str(), e));
 
-		nodei->setNeighbor(nodej);
-		nodej->setNeighbor(nodei);
+		if(getEdge(edgeNameFull.str()) == NULL) {
+			Edge e(edgeName.str(), edgeNameFull.str(), c);
+			e.setNodes(nodei, nodej);
+			edge.insert(pair<string, Edge> (edgeName.str(), e));
+		}
 	}
 
 	void listAllNodes() {
 		map<string, Node>::iterator it;
 		for (it = node.begin(); it != node.end(); ++it) {
 			cout << (*it).first << " => ";
-			for (int j = 0; j < (*it).second.neighbor.size(); j++) {
-				cout << (*it).second.neighbor[j] << ", ";
-			}
+			(*it).second.listAllNeighbors();
 			cout << endl;
 		}
 	}
@@ -195,15 +223,41 @@ int main(int argc, char *argv[]) {
 	GRBEnv* env = 0;
 	GRBVar* x = 0;
 
-	int c[6];
+	int gridSize = 3;
+	Graph g;
 
-	Graph g(6);
-	g.addEdge(0, 2, 1);
-	g.addEdge(0, 1, 2);
-	g.addEdge(2, 3, 1);
-	g.addEdge(3, 1, 1);
-	g.addEdge(3, 4, 1);
-	g.addEdge(4, 5, 1);
+	for(int i = 0; i < gridSize; i++) {
+		for(int j = 0; j < gridSize; j++) {
+			int c = i+j;
+			g.addNode(c);
+		}
+	}
+
+	for(int i = 0; i < gridSize; i++) {
+		for(int j = 0; j < gridSize; j++) {
+			int c = j+gridSize*i;
+
+			if (j != 0) {
+				int l = j-1+gridSize*i;
+				g.addEdge(c, l, 1);
+			}
+
+			if (j != gridSize-1) {
+				int r = j+1+gridSize*i;
+				g.addEdge(c, r, 1);
+			}
+
+			if (i != 0) {
+				int u = j+gridSize*(i-1);
+				g.addEdge(c, u, 1);
+			}
+
+			if (i != gridSize-1) {
+				int d = j+gridSize*(i+1);
+				g.addEdge(c, d, 1);
+			}
+		}
+	}
 
 	g.listAllNodes();
 	g.listAllEdges();
