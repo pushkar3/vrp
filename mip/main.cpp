@@ -14,6 +14,7 @@ public:
 	int value;
 	int robot;
 	string name;
+	string nameHole;
 	vector<string> neighbor;
 
 	Node() {}
@@ -22,6 +23,10 @@ public:
 		name = _name;
 		value = 0;
 		robot = 0;
+	}
+
+	void setHoleName(string _name) {
+		nameHole = _name;
 	}
 
 	void setValue(int _value) {
@@ -115,6 +120,17 @@ public:
 		return NULL;
 	}
 
+	int getNode(string nodeName) {
+		int r = -1;
+		int i = 0;
+		map<string, Node>::iterator it;
+		for (i = 0, it = node.begin(); it != node.end(); ++it, i++) {
+			if (nodeName.compare((*it).first) == 0)
+				return i;
+		}
+		return r;
+	}
+
 	void setNodeAsRobot(string nodeIndex) {
 		node[nodeIndex].setRobot(1);
 		nSteinerNodes--;
@@ -126,9 +142,11 @@ public:
 	}
 
 	void addNode(int c) {
-		ostringstream nodeName;
+		ostringstream nodeName, nodeHoleName;
 		nodeName << "y" << node.size();
+		nodeHoleName << "z" << node.size();
 		Node n(nodeName.str());
+		n.setHoleName(nodeHoleName.str());
 		n.setValue(c);
 		node.insert(pair<string, Node>(nodeName.str(), n));
 		nSteinerNodes++;
@@ -227,10 +245,11 @@ int gridPos(int r, int c) {
 
 int main(int argc, char *argv[]) {
 	GRBEnv* env = 0;
-	GRBVar* x = 0;
-	GRBVar* y = 0;
+	GRBVar* x = 0;  // edges
+	GRBVar* y = 0;  // robots
+	GRBVar* z = 0;  // holes
 
-	int nRobots = 3;
+	int nRobots = 5;
 	Graph g;
 
 	vector<int> terminal_x, terminal_y;
@@ -309,6 +328,15 @@ int main(int argc, char *argv[]) {
 			y[i].set(GRB_StringAttr_VarName, nodeName);
 		}
 
+		z = model.addVars(g.getTotalNodes(), GRB_BINARY);
+		model.update();
+
+		for (i = 0, itN = g.node.begin(); itN != g.node.end(); ++itN, i++) {
+			string nodeName = (*itN).second.nameHole;
+			z[i].set(GRB_DoubleAttr_Obj, 1); // or 0
+			z[i].set(GRB_StringAttr_VarName, nodeName);
+		}
+
 		model.set(GRB_IntAttr_ModelSense, 1);
 		model.update();
 
@@ -320,6 +348,41 @@ int main(int argc, char *argv[]) {
 			nodeSumExpr += y[i];
 		}
 		model.addConstr(nodeSumExpr == nRobots, nodeSumString.str());
+
+		model.update();
+
+		// Select each node as a robot or a hole
+		for (i = 0; i < g.getTotalNodes(); i++) {
+			ostringstream nodeConditionString;
+			GRBLinExpr nodeConditionExpr = 0;
+			nodeConditionString << "nc" << i;
+			nodeConditionExpr = y[i] + z[i];
+			model.addConstr(nodeConditionExpr <= 1, nodeConditionString.str());
+		}
+
+		model.update();
+
+		// Select each node as a robot or a hole
+		for (i = 0, itE = g.edge.begin(); itE != g.edge.end(); ++itE, i++) {
+			ostringstream edgeConditionString_1, edgeConditionString_2;
+			GRBLinExpr edgeConditionExpr_1 = 0, edgeConditionExpr_2 = 0;
+
+			Edge e = (*itE).second;
+			string nodeiName = e.i;
+			string nodejName = e.j;
+			int inode = g.getNode(nodeiName);
+			int jnode = g.getNode(nodejName);
+
+			edgeConditionString_1 << "ec1" << i;
+			edgeConditionExpr_1 = y[inode] + z[inode];
+			model.addConstr(edgeConditionExpr_1 >= x[i], edgeConditionString_1.str());
+
+			edgeConditionString_2 << "ec2" << i;
+			edgeConditionExpr_2 = y[jnode] + z[jnode];
+			model.addConstr(edgeConditionExpr_2 >= x[i], edgeConditionString_2.str());
+		}
+
+		model.update();
 
 		// Sum of all edges = n-1
 		ostringstream edgeSumString;
@@ -475,15 +538,19 @@ int main(int argc, char *argv[]) {
 		// Print solution
 		cout << "\nTOTAL COSTS: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
 		cout << "Solution:" << endl;
-		cout << "Robot Positions:" << endl;
+		cout << endl;
+		cout << "Robot/Hole Positions:" << endl;
 		for (int i = 0; i < g.getTotalNodes(); i++) {
 			if (y[i].get(GRB_DoubleAttr_X) > 0)
-				cout << y[i].get(GRB_StringAttr_VarName) << endl;
+				cout << y[i].get(GRB_StringAttr_VarName) << " => " << y[i].get(GRB_DoubleAttr_X) << endl;
+			if (z[i].get(GRB_DoubleAttr_X) > 0)
+				cout << z[i].get(GRB_StringAttr_VarName) << " => " << z[i].get(GRB_DoubleAttr_X) << endl;
 		}
+		cout << endl;
 		cout << "Edge Positions:" << endl;
 		for (int i = 0; i < g.getTotalEdges(); i++) {
 			if (x[i].get(GRB_DoubleAttr_X) > 0)
-				cout << x[i].get(GRB_StringAttr_VarName) << endl;
+				cout << x[i].get(GRB_StringAttr_VarName) << " => " << x[i].get(GRB_DoubleAttr_X) << endl;
 		}
 
 	} catch (GRBException e) {
