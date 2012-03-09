@@ -11,34 +11,91 @@ using namespace std;
 class Node {
 public:
 	int value;
-	vector<Node*> neighbor;
+	int robot;
+	string name;
+	vector<string> neighbor;
 
-	Node(int _value) {
+	Node() {}
+
+	Node(string _name) {
+		name = _name;
+		value = 0;
+		robot = 0;
+	}
+
+	void setValue(int _value) {
 		value = _value;
 	}
 
+	void setRobot(int _r) {
+		robot = _r;
+	}
+
+	int isRobot() {
+		return robot;
+	}
+
 	void setNeighbor(Node* n) {
-		neighbor.push_back(n);
+		neighbor.push_back(n->name);
 	}
 
 	void listAllNeighbors() {
 		int i = 0;
-		for (; i < neighbor.size()-1; i++) {
-			cout << neighbor[i]->value << ", ";
+		for (; i < neighbor.size() - 1; i++) {
+			cout << neighbor[i] << ", ";
 		}
-		cout << neighbor[i]->value;
+		cout << neighbor[i];
 	}
+	~Node() {}
+};
+
+class Edge {
+public:
+	string name;
+	string i, j;
+	int cost;
+
+	Edge(string _name, int _cost) {
+		name = _name;
+		cost = _cost;
+	}
+
+	void setNodes(Node* _i, Node* _j) {
+		i = _i->name;
+		j = _j->name;
+	}
+	~Edge() {}
 };
 
 class Graph {
 public:
-	vector<Node> node;
-	map<string, int> edge;
-	vector<string> edge_counter;
+	map<string, Node> node;
+	map<string, Edge> edge;
+	int nSteinerNodes;
 
 	Graph(int n_nodes) {
-		for (int i = 0; i < n_nodes; i++)
-			node.push_back(Node(i));
+		for (int i = 0; i < n_nodes; i++) {
+			ostringstream nodeName;
+			nodeName << "y" << i;
+			node.insert(pair<string, Node> (nodeName.str(), Node(nodeName.str())));
+		}
+		nSteinerNodes = node.size();
+	}
+
+	Node* getNode(int i) {
+		ostringstream index;
+		index << "y" << i;
+		return &(node[index.str()]);
+	}
+
+	void setNodeAsRobot(string nodeIndex) {
+		node[nodeIndex].setRobot(1);
+		nSteinerNodes--;
+	}
+
+	void resetNode(string nodeIndex) {
+		node[nodeIndex].setRobot(0);
+		nSteinerNodes++;
 	}
 
 	void addEdge(int i, int j, int c) {
@@ -46,62 +103,48 @@ public:
 		if (j > i) {
 			int t = i; i = j; j = t;
 		}
-		node[i].setNeighbor(&node[j]);
-		node[j].setNeighbor(&node[i]);
+
+		Node* nodei = getNode(i);
+		Node* nodej = getNode(j);
+
 		ostringstream edgeName;
 		edgeName << "x" << j << "." << i;
-		edge.insert(pair<string, int>(edgeName.str(), c));
+		Edge e(edgeName.str(), c);
+		e.setNodes(nodei, nodej);
+		edge.insert(pair<string, Edge> (edgeName.str(), e));
+
+		nodei->setNeighbor(nodej);
+		nodej->setNeighbor(nodei);
 	}
 
 	void listAllNodes() {
-		for (int i = 0; i < node.size(); i++) {
-			cout << node[i].value << " => " << "[";
-			node[i].listAllNeighbors();
-			cout << "]" << endl;
+		map<string, Node>::iterator it;
+		for (it = node.begin(); it != node.end(); ++it) {
+			cout << (*it).first << " => ";
+			for (int j = 0; j < (*it).second.neighbor.size(); j++) {
+				cout << (*it).second.neighbor[j] << ", ";
+			}
+			cout << endl;
 		}
 	}
 
 	void listAllEdges() {
-		edge_counter.clear();
-		map<string, int>::iterator it;
+		map<string, Edge>::iterator it;
 		for (it = edge.begin(); it != edge.end(); ++it) {
-			edge_counter.push_back((*it).first);
-			cout << (*it).first << "\t " << (*it).second << endl;
+			cout << (*it).first << "\t " << (*it).second.cost << endl;
 		}
-	}
-
-	int findEdgeIndexByName(string name) {
-		int i = 0;
-		while (i < edge_counter.size()) {
-			if (edge_counter[i].compare(name) == 0)
-				return i;
-		}
-		return -1;
-	}
-
-	int findEdgeIndexByNode(int i, int j) {
-		if (j > i) {
-			int t = i; i = j; j = t;
-		}
-		ostringstream edgeName;
-		edgeName << "x" << j << "." << i;
-		return findEdgeIndexByName(edgeName.str());
-	}
-
-	string findEdgeByIndex(int i) {
-		return edge_counter[i];
-	}
-
-	int findEdgeValue(string name) {
-		return (edge[name]);
-	}
-
-	int findEdgeValue(int i) {
-		return findEdgeValue(findEdgeByIndex(i));
 	}
 
 	int getTotalNodes() {
 		return node.size();
+	}
+
+	int getTotalSteinerNodes() {
+		return nSteinerNodes;
+	}
+
+	int getTotalRobotNodes() {
+		return (node.size() - nSteinerNodes);
 	}
 
 	int getTotalEdges() {
@@ -126,21 +169,23 @@ int main(int argc, char *argv[]) {
 	g.listAllNodes();
 	g.listAllEdges();
 
-	int n = g.getTotalNodes();
-	int m = g.getTotalEdges();
-
 	try {
 
 		env = new GRBEnv();
 		GRBModel model = GRBModel(*env);
 		model.set(GRB_StringAttr_ModelName, "MST");
 
-		x = model.addVars(m, GRB_BINARY);
+		int i = 0;
+		map<string, Edge>::iterator itE;
+		map<string, Node>::iterator itN;
+
+		//
+		x = model.addVars(g.getTotalEdges(), GRB_BINARY);
 		model.update();
 
-		for (int i = 0; i < m; i++) {
-			int edgeCost = g.findEdgeValue(i);
-			string edgeName = g.findEdgeByIndex(i);
+		for (i = 0, itE = g.edge.begin(); itE != g.edge.end(); ++itE, i++) {
+			string edgeName = (*itE).first;
+			int edgeCost = (*itE).second.cost;
 			x[i].set(GRB_DoubleAttr_Obj, edgeCost);
 			x[i].set(GRB_StringAttr_VarName, edgeName);
 		}
@@ -148,20 +193,23 @@ int main(int argc, char *argv[]) {
 		model.set(GRB_IntAttr_ModelSense, 1);
 		model.update();
 
-
 		// Constraints
 		// Sum of all edges = n-1
 		ostringstream edgeSumString;
 		GRBLinExpr edgeSumExpr = 0;
 		edgeSumString << "edge sum";
-		for (int i = 0; i < m; i++) {
+		for (i = 0; i < g.getTotalEdges(); i++) {
 			edgeSumExpr += x[i];
 		}
-		model.addConstr(edgeSumExpr == n-1, edgeSumString.str());
+		model.addConstr(edgeSumExpr == g.getTotalNodes() - 1, edgeSumString.str());
 
 		// Subtour Elimination Constraints
+		/*
+		vector<Node> nodeSubset;
+		nodeSubset = g.node;
+
 		int c_n = 2;
-		while (c_n < n) {
+		while (c_n < nodeSubset.size()) {
 			int c[c_n + 1];
 
 			for (int j = 0; j < c_n; j++)
@@ -183,10 +231,11 @@ int main(int argc, char *argv[]) {
 					GRBLinExpr subTourExpr;
 					subTourString << "c";
 					for (int i = 0; i < c_n; i++) {
-						subTourString << "." << i;
-						subTourExpr += x[i];
+						int _i = nodeSubset[i].value;
+						subTourString << "." << _i;
+						subTourExpr += x[_i];
 					}
-					model.addConstr(subTourExpr <= c_n-1, subTourString.str());
+					model.addConstr(subTourExpr <= c_n - 1, subTourString.str());
 				}
 
 				j = 0;
@@ -194,44 +243,41 @@ int main(int argc, char *argv[]) {
 					c[j] = 0;
 					j++;
 				}
-
 				c[j]++;
-
 				if (j == c_n)
 					break;
-
 			}
-
 			c_n++;
 		}
-
+*/
+		// Cutset Constraints
 
 		model.update();
 		model.write("prob.lp");
 
 		// Initialization
-//		// Guess at the starting point: close the plant with the highest
-//		// fixed costs; open all others
-//		// First, open all plants
-//		for (int p = 0; p < n; ++p) {
-//			y[p].set(GRB_DoubleAttr_Start, 1.0);
-//		}
-//
-//		// Now close the plant with the highest fixed cost
-//		cout << "Initial guess:" << endl;
-//		double maxFixed = -GRB_INFINITY;
-//		for (int p = 0; p < nPlants; ++p) {
-//			if (FixedCosts[p] > maxFixed) {
-//				maxFixed = FixedCosts[p];
-//			}
-//		}
-//		for (int p = 0; p < nPlants; ++p) {
-//			if (FixedCosts[p] == maxFixed) {
-//				open[3].set(GRB_DoubleAttr_Start, 0.0);
-//				cout << "Closing plant " << p << endl << endl;
-//				break;
-//			}
-//		}
+		//		// Guess at the starting point: close the plant with the highest
+		//		// fixed costs; open all others
+		//		// First, open all plants
+		//		for (int p = 0; p < n; ++p) {
+		//			y[p].set(GRB_DoubleAttr_Start, 1.0);
+		//		}
+		//
+		//		// Now close the plant with the highest fixed cost
+		//		cout << "Initial guess:" << endl;
+		//		double maxFixed = -GRB_INFINITY;
+		//		for (int p = 0; p < nPlants; ++p) {
+		//			if (FixedCosts[p] > maxFixed) {
+		//				maxFixed = FixedCosts[p];
+		//			}
+		//		}
+		//		for (int p = 0; p < nPlants; ++p) {
+		//			if (FixedCosts[p] == maxFixed) {
+		//				open[3].set(GRB_DoubleAttr_Start, 0.0);
+		//				cout << "Closing plant " << p << endl << endl;
+		//				break;
+		//			}
+		//		}
 
 		// Use barrier to solve root relaxation
 		model.getEnv().set(GRB_IntParam_Method, GRB_METHOD_BARRIER);
@@ -242,11 +288,10 @@ int main(int argc, char *argv[]) {
 		// Print solution
 		cout << "\nTOTAL COSTS: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
 		cout << "Solution:" << endl;
-		for (int i = 0; i < m; i++) {
-				if (x[i].get(GRB_DoubleAttr_X) > 0)
-					cout << x[i].get(GRB_StringAttr_VarName) << endl;
-			}
-
+		for (int i = 0; i < g.getTotalEdges(); i++) {
+			if (x[i].get(GRB_DoubleAttr_X) > 0)
+				cout << x[i].get(GRB_StringAttr_VarName) << endl;
+		}
 
 	} catch (GRBException e) {
 		cout << "Error code = " << e.getErrorCode() << endl;
