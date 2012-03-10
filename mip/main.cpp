@@ -257,7 +257,7 @@ int main(int argc, char *argv[]) {
 	GRBVar* y = 0;  // robots
 	GRBVar* z = 0;  // holes
 
-	int nRobots = 5;
+	int nRobots = 3;
 	Graph g;
 
 	vector<int> terminal_x, terminal_y;
@@ -369,94 +369,78 @@ int main(int argc, char *argv[]) {
 
 		model.update();
 
-		// Select each node as a robot or a hole
-		for (i = 0, itE = g.edge.begin(); itE != g.edge.end(); ++itE, i++) {
-			ostringstream edgeConditionString_1, edgeConditionString_2;
-			GRBLinExpr edgeConditionExpr_1 = 0, edgeConditionExpr_2 = 0;
+		// Sum of all edges = n-1
+		ostringstream edgeSumString;
+		GRBLinExpr edgeSumExpr = 0;
+		edgeSumString << "edge sum";
+		for (i = 0; i < g.getTotalEdges(); i++)
+			edgeSumExpr -= x[i];
 
-			Edge e = (*itE).second;
-			string nodeiName = e.i;
-			string nodejName = e.j;
-			int inode = g.getNode(nodeiName);
-			int jnode = g.getNode(nodejName);
+		for (i = 0; i < g.getTotalNodes(); i++)
+			edgeSumExpr += y[i]+z[i];
 
-			edgeConditionString_1 << "ec1" << i;
-			edgeConditionExpr_1 = y[inode] + z[inode];
-			model.addConstr(edgeConditionExpr_1 >= x[i], edgeConditionString_1.str());
-
-			edgeConditionString_2 << "ec2" << i;
-			edgeConditionExpr_2 = y[jnode] + z[jnode];
-			model.addConstr(edgeConditionExpr_2 >= x[i], edgeConditionString_2.str());
-		}
+		model.addConstr(edgeSumExpr == 1, edgeSumString.str());
 
 		model.update();
 
-		// Sum of all edges = n-1
-//		ostringstream edgeSumString;
-//		GRBLinExpr edgeSumExpr = 0;
-//		edgeSumString << "edge sum";
-//		for (i = 0; i < g.getTotalEdges(); i++) {
-//			edgeSumExpr += x[i];
-//		}
-//		model.addConstr(edgeSumExpr == g.getTotalNodes() - 1, edgeSumString.str());
-
 		// Subtour Elimination Constraints
-//		vector<int> nodeSubset;
-//		nodeSubset.push_back(0);
-//		nodeSubset.push_back(1);
-//		nodeSubset.push_back(2);
-//		nodeSubset.push_back(3);
-//		nodeSubset.push_back(4);
-//
-//		int c_n = 2;
-//		while (c_n < nodeSubset.size()) {
-//			int c[c_n + 1];
-//
-//			for (int j = 0; j < c_n; j++)
-//				c[j] = 0;
-//
-//			c[c_n] = g.getTotalNodes();
-//
-//			int j = 0;
-//			while (1) {
-//
-//				int skip = 0;
-//				for (int i = 0; i < c_n; i++) {
-//					if (c[i] == c[i + 1])
-//						skip = 1;
-//				}
-//
-//				if (!skip) {
-//					ostringstream subTourString;
-//					GRBLinExpr subTourExpr;
-//
-//					vector<int> _nodes;
-//					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
-//					vector<int> _edges = g.getEdgesFromSubset(_nodes, 1);
-//
-//					subTourString << "s";
-//					for(int i = 0; i < _edges.size(); i++) {
-//						subTourString << "." << _edges[i];
-//						subTourExpr += x[_edges[i]];
-//					}
-//
-//					if(_edges.size() > 0)
-//						model.addConstr(subTourExpr <= c_n - 1, subTourString.str());
-//				}
-//
-//				j = 0;
-//				while (c[j] == c[j + 1]) {
-//					c[j] = 0;
-//					j++;
-//				}
-//				c[j]++;
-//				if (j == c_n)
-//					break;
-//			}
-//			c_n++;
-//		}
-//
-//		model.update();
+		vector<int> nodeSubset;
+		for (i = 0; i < g.getTotalNodes()-1; i++)
+			nodeSubset.push_back(i);
+
+		int c_n = 2;
+		while (c_n < nodeSubset.size()) {
+			int c[c_n + 1];
+
+			for (int j = 0; j < c_n; j++)
+				c[j] = 0;
+
+			c[c_n] = g.getTotalNodes();
+
+			int j = 0;
+			while (1) {
+
+				int skip = 0;
+				for (int i = 0; i < c_n; i++) {
+					if (c[i] == c[i + 1])
+						skip = 1;
+				}
+
+				if (!skip) {
+					ostringstream subTourString;
+					GRBLinExpr subTourExpr;
+
+					vector<int> _nodes;
+					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
+					vector<int> _edges = g.getEdgesFromSubset(_nodes, 1);
+
+					subTourString << "s";
+					for(int i = 0; i < _edges.size(); i++) {
+						subTourString << "." << _edges[i];
+						subTourExpr += x[_edges[i]];
+					}
+
+					GRBLinExpr c_nExpr = 0;
+					for(int i = 0; i < _nodes.size(); i++)
+						c_nExpr += y[_nodes[i]]+z[_nodes[i]];
+
+					if(_edges.size() > 0)
+						model.addConstr(subTourExpr <= c_nExpr - 1, subTourString.str());
+				}
+
+				j = 0;
+				while (c[j] == c[j + 1]) {
+					c[j] = 0;
+					j++;
+				}
+				c[j]++;
+				if (j == c_n)
+					break;
+			}
+			c_n++;
+		}
+
+		model.update();
 
 		// Cutset Constraints
 //		c_n = 1;
@@ -526,8 +510,8 @@ int main(int argc, char *argv[]) {
 			}
 
 			if(edges.size() > 0) {
-				model.addConstr(ncutSetExpr_1 >= 2*z[i], ncutSetString_1.str());
-				model.addConstr(ncutSetExpr_2 >= y[i], ncutSetString_2.str());
+				model.addConstr(ncutSetExpr_1 >= y[i] + 2*z[i], ncutSetString_1.str());
+				model.addConstr(ncutSetExpr_2 <= y[i] + 4*z[i], ncutSetString_2.str());
 			}
 		}
 
@@ -543,6 +527,7 @@ int main(int argc, char *argv[]) {
 			model.addConstr(terminalExpr == 1, terminalString.str());
 		}
 
+		model.update();
 		model.write("prob.lp");
 
 		// Initialization
@@ -561,6 +546,9 @@ int main(int argc, char *argv[]) {
 		for (int i = 0; i < g.getTotalNodes(); i++) {
 			if (y[i].get(GRB_DoubleAttr_X) > 0)
 				cout << y[i].get(GRB_StringAttr_VarName) << " => " << y[i].get(GRB_DoubleAttr_X) << endl;
+		}
+		cout << endl;
+		for (int i = 0; i < g.getTotalNodes(); i++) {
 			if (z[i].get(GRB_DoubleAttr_X) > 0)
 				cout << z[i].get(GRB_StringAttr_VarName) << " => " << z[i].get(GRB_DoubleAttr_X) << endl;
 		}
