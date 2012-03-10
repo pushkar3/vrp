@@ -16,6 +16,7 @@ public:
 	string name;
 	string nameHole;
 	vector<string> neighbor;
+	vector<string> edge;
 
 	Node() {}
 
@@ -41,11 +42,12 @@ public:
 		return robot;
 	}
 
-	void setNeighbor(Node* n) {
+	void setNeighbor(Node* n, string edgeName) {
 		for (int i = 0; i < neighbor.size(); i++)
 			if(n->name.compare(neighbor[i]) == 0)
 				return;
 		neighbor.push_back(n->name);
+		edge.push_back(edgeName);
 	}
 
 	void listAllNeighbors() {
@@ -54,6 +56,12 @@ public:
 			cout << neighbor[i] << ", ";
 		}
 		cout << neighbor[i];
+
+		cout << " (";
+		for (i = 0; i < edge.size() - 1; i++) {
+			cout << edge[i] << ", ";
+		}
+		cout << edge[i] << ")";
 	}
 	~Node() {}
 };
@@ -163,12 +171,12 @@ public:
 		Node* nodei = getNode(i);
 		Node* nodej = getNode(j);
 
-		nodei->setNeighbor(nodej);
-		nodej->setNeighbor(nodei);
-
 		ostringstream edgeName, edgeNameFull;
 		edgeName << "e" << edge.size();
 		edgeNameFull << "x" << j << "." << i;
+
+		nodei->setNeighbor(nodej, edgeName.str());
+		nodej->setNeighbor(nodei, edgeName.str(	));
 
 		if(getEdge(edgeNameFull.str()) == NULL) {
 			Edge e(edgeName.str(), edgeNameFull.str(), c);
@@ -262,8 +270,6 @@ int main(int argc, char *argv[]) {
 			for (int k = 0; k < terminal_x.size(); k++) {
 				c += abs(terminal_x[k]-i)+abs(terminal_y[k]-j);
 			}
-			if (c == 0)
-				c = 100; // robot
 			g.addNode(c);
 		}
 	}
@@ -333,7 +339,7 @@ int main(int argc, char *argv[]) {
 
 		for (i = 0, itN = g.node.begin(); itN != g.node.end(); ++itN, i++) {
 			string nodeName = (*itN).second.nameHole;
-			z[i].set(GRB_DoubleAttr_Obj, 1); // or 0
+			z[i].set(GRB_DoubleAttr_Obj, 1);
 			z[i].set(GRB_StringAttr_VarName, nodeName);
 		}
 
@@ -343,6 +349,7 @@ int main(int argc, char *argv[]) {
 		// Constraints
 		// Total number of robots
 		ostringstream nodeSumString;
+		nodeSumString << "ysum." << nRobots;
 		GRBLinExpr nodeSumExpr = 0;
 		for (i = 0; i < g.getTotalNodes(); i++) {
 			nodeSumExpr += y[i];
@@ -385,149 +392,160 @@ int main(int argc, char *argv[]) {
 		model.update();
 
 		// Sum of all edges = n-1
-		ostringstream edgeSumString;
-		GRBLinExpr edgeSumExpr = 0;
-		edgeSumString << "edge sum";
-		for (i = 0; i < g.getTotalEdges(); i++) {
-			edgeSumExpr += x[i];
-		}
-		model.addConstr(edgeSumExpr == g.getTotalNodes() - 1, edgeSumString.str());
+//		ostringstream edgeSumString;
+//		GRBLinExpr edgeSumExpr = 0;
+//		edgeSumString << "edge sum";
+//		for (i = 0; i < g.getTotalEdges(); i++) {
+//			edgeSumExpr += x[i];
+//		}
+//		model.addConstr(edgeSumExpr == g.getTotalNodes() - 1, edgeSumString.str());
 
 		// Subtour Elimination Constraints
-		vector<int> nodeSubset;
-		nodeSubset.push_back(0);
-		nodeSubset.push_back(1);
-		nodeSubset.push_back(2);
-		nodeSubset.push_back(3);
-		nodeSubset.push_back(4);
-
-		int c_n = 2;
-		while (c_n < nodeSubset.size()) {
-			int c[c_n + 1];
-
-			for (int j = 0; j < c_n; j++)
-				c[j] = 0;
-
-			c[c_n] = g.getTotalNodes();
-
-			int j = 0;
-			while (1) {
-
-				int skip = 0;
-				for (int i = 0; i < c_n; i++) {
-					if (c[i] == c[i + 1])
-						skip = 1;
-				}
-
-				if (!skip) {
-					ostringstream subTourString;
-					GRBLinExpr subTourExpr;
-
-					vector<int> _nodes;
-					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
-					vector<int> _edges = g.getEdgesFromSubset(_nodes, 1);
-
-					subTourString << "s";
-					for(int i = 0; i < _edges.size(); i++) {
-						subTourString << "." << _edges[i];
-						subTourExpr += x[_edges[i]];
-					}
-
-					if(_edges.size() > 0)
-						model.addConstr(subTourExpr <= c_n - 1, subTourString.str());
-				}
-
-				j = 0;
-				while (c[j] == c[j + 1]) {
-					c[j] = 0;
-					j++;
-				}
-				c[j]++;
-				if (j == c_n)
-					break;
-			}
-			c_n++;
-		}
-
-		model.update();
+//		vector<int> nodeSubset;
+//		nodeSubset.push_back(0);
+//		nodeSubset.push_back(1);
+//		nodeSubset.push_back(2);
+//		nodeSubset.push_back(3);
+//		nodeSubset.push_back(4);
+//
+//		int c_n = 2;
+//		while (c_n < nodeSubset.size()) {
+//			int c[c_n + 1];
+//
+//			for (int j = 0; j < c_n; j++)
+//				c[j] = 0;
+//
+//			c[c_n] = g.getTotalNodes();
+//
+//			int j = 0;
+//			while (1) {
+//
+//				int skip = 0;
+//				for (int i = 0; i < c_n; i++) {
+//					if (c[i] == c[i + 1])
+//						skip = 1;
+//				}
+//
+//				if (!skip) {
+//					ostringstream subTourString;
+//					GRBLinExpr subTourExpr;
+//
+//					vector<int> _nodes;
+//					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
+//					vector<int> _edges = g.getEdgesFromSubset(_nodes, 1);
+//
+//					subTourString << "s";
+//					for(int i = 0; i < _edges.size(); i++) {
+//						subTourString << "." << _edges[i];
+//						subTourExpr += x[_edges[i]];
+//					}
+//
+//					if(_edges.size() > 0)
+//						model.addConstr(subTourExpr <= c_n - 1, subTourString.str());
+//				}
+//
+//				j = 0;
+//				while (c[j] == c[j + 1]) {
+//					c[j] = 0;
+//					j++;
+//				}
+//				c[j]++;
+//				if (j == c_n)
+//					break;
+//			}
+//			c_n++;
+//		}
+//
+//		model.update();
 
 		// Cutset Constraints
-		c_n = 1;
-		while (c_n < nodeSubset.size()) {
-			int c[c_n + 1];
+//		c_n = 1;
+//		while (c_n < nodeSubset.size()) {
+//			int c[c_n + 1];
+//
+//			for (int j = 0; j < c_n; j++)
+//				c[j] = 0;
+//
+//			c[c_n] = g.getTotalNodes();
+//
+//			int j = 0;
+//			while (1) {
+//
+//				int skip = 0;
+//				for (int i = 0; i < c_n; i++) {
+//					if (c[i] == c[i + 1])
+//						skip = 1;
+//				}
+//
+//				if (!skip) {
+//					ostringstream cutSetString;
+//					GRBLinExpr cutSetExpr;
+//
+//					vector<int> _nodes;
+//					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
+//					vector<int> _edges = g.getEdgesFromSubset(_nodes, 0);
+//
+//					cutSetString << "c";
+//					for(int i = 0; i < _edges.size(); i++) {
+//						cutSetString << "." << _edges[i];
+//						cutSetExpr += x[_edges[i]];
+//					}
+//
+//					if(_edges.size() > 0)
+//						model.addConstr(cutSetExpr >= 1, cutSetString.str());
+//				}
+//
+//				j = 0;
+//				while (c[j] == c[j + 1]) {
+//					c[j] = 0;
+//					j++;
+//				}
+//				c[j]++;
+//				if (j == c_n)
+//					break;
+//			}
+//			c_n++;
+//		}
+//
+//		model.update();
 
-			for (int j = 0; j < c_n; j++)
-				c[j] = 0;
+		// New cutset conditions
+		for (int i = 0; i < g.getTotalNodes(); i++) {
+			ostringstream ncutSetString_1, ncutSetString_2;
+			GRBLinExpr ncutSetExpr_1, ncutSetExpr_2;
 
-			c[c_n] = g.getTotalNodes();
+			vector<int> nodes;
+			nodes.push_back(i);
+			vector<int> edges = g.getEdgesFromSubset(nodes, 0);
 
-			int j = 0;
-			while (1) {
-
-				int skip = 0;
-				for (int i = 0; i < c_n; i++) {
-					if (c[i] == c[i + 1])
-						skip = 1;
-				}
-
-				if (!skip) {
-					ostringstream cutSetString;
-					GRBLinExpr cutSetExpr;
-
-					vector<int> _nodes;
-					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
-					vector<int> _edges = g.getEdgesFromSubset(_nodes, 0);
-
-					cutSetString << "c";
-					for(int i = 0; i < _edges.size(); i++) {
-						cutSetString << "." << _edges[i];
-						cutSetExpr += x[_edges[i]];
-					}
-
-					if(_edges.size() > 0)
-						model.addConstr(cutSetExpr >= 1, cutSetString.str());
-				}
-
-				j = 0;
-				while (c[j] == c[j + 1]) {
-					c[j] = 0;
-					j++;
-				}
-				c[j]++;
-				if (j == c_n)
-					break;
+			ncutSetString_1 << "nc1." << i;
+			ncutSetString_2 << "nc2." << i;
+			for(int j = 0; j < edges.size(); j++) {
+				ncutSetExpr_1 += x[edges[j]];
+				ncutSetExpr_2 += x[edges[j]];
 			}
-			c_n++;
+
+			if(edges.size() > 0) {
+				model.addConstr(ncutSetExpr_1 >= 2*z[i], ncutSetString_1.str());
+				model.addConstr(ncutSetExpr_2 >= y[i], ncutSetString_2.str());
+			}
 		}
 
 		model.update();
 
+		// Set Terminal Positions
+		for (int k = 0; k < terminal_x.size(); k++) {
+			int i = terminal_x[k];
+			int j = terminal_y[k];
+			ostringstream terminalString;
+			GRBLinExpr terminalExpr = z[gridPos(i, j)];
+			terminalString << "terminal" << gridPos(i, j);
+			model.addConstr(terminalExpr == 1, terminalString.str());
+		}
 
 		model.write("prob.lp");
 
 		// Initialization
-		//		// Guess at the starting point: close the plant with the highest
-		//		// fixed costs; open all others
-		//		// First, open all plants
-		//		for (int p = 0; p < n; ++p) {
-		//			y[p].set(GRB_DoubleAttr_Start, 1.0);
-		//		}
-		//
-		//		// Now close the plant with the highest fixed cost
-		//		cout << "Initial guess:" << endl;
-		//		double maxFixed = -GRB_INFINITY;
-		//		for (int p = 0; p < nPlants; ++p) {
-		//			if (FixedCosts[p] > maxFixed) {
-		//				maxFixed = FixedCosts[p];
-		//			}
-		//		}
-		//		for (int p = 0; p < nPlants; ++p) {
-		//			if (FixedCosts[p] == maxFixed) {
-		//				open[3].set(GRB_DoubleAttr_Start, 0.0);
-		//				cout << "Closing plant " << p << endl << endl;
-		//				break;
-		//			}
-		//		}
 
 		// Use barrier to solve root relaxation
 		model.getEnv().set(GRB_IntParam_Method, GRB_METHOD_BARRIER);
