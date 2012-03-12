@@ -11,23 +11,18 @@ using namespace std;
 
 class Node {
 public:
+	int index;
 	int value;
 	int robot;
-	string name;
-	string nameHole;
-	vector<string> neighbor;
-	vector<string> edge;
+	vector<int> neighbor;
+	vector<int> edge;
 
-	Node() {}
+	Node() { }
 
-	Node(string _name) {
-		name = _name;
+	Node(int _index) {
+		index = _index;
 		value = 0;
 		robot = 0;
-	}
-
-	void setHoleName(string _name) {
-		nameHole = _name;
 	}
 
 	void setValue(int _value) {
@@ -42,26 +37,25 @@ public:
 		return robot;
 	}
 
-	void setNeighbor(Node* n, string edgeName) {
+	void setNeighbor(Node* n, int edgeIndex) {
 		for (int i = 0; i < neighbor.size(); i++)
-			if(n->name.compare(neighbor[i]) == 0)
-				return;
-		neighbor.push_back(n->name);
-		edge.push_back(edgeName);
+			if(n->index == neighbor[i])	return;
+		neighbor.push_back(n->index);
+		edge.push_back(edgeIndex);
 	}
 
 	void listAllNeighbors() {
 		int i = 0;
 		for (; i < neighbor.size() - 1; i++) {
-			cout << neighbor[i] << ", ";
+			cout << "y" << neighbor[i] << ", ";
 		}
-		cout << neighbor[i];
+		cout << "y" << neighbor[i];
 
 		cout << " (";
 		for (i = 0; i < edge.size() - 1; i++) {
-			cout << edge[i] << ", ";
+			cout << "e" << edge[i] << ", ";
 		}
-		cout << edge[i] << ")";
+		cout << "e" << edge[i] << ")";
 	}
 	~Node() {}
 };
@@ -69,29 +63,29 @@ public:
 class Edge {
 public:
 	string name;
-	string nameFull;
-	string i, j;
+	int index;
+	int i, j;
 	int cost;
 
 	Edge() {}
 
-	Edge(string _name, string _nameFull, int _cost) {
+	Edge(string _name, int _index, int _cost) {
+		index = _index;
 		name = _name;
-		nameFull = _nameFull;
 		cost = _cost;
 	}
 
 	void setNodes(Node* _i, Node* _j) {
-		i = _i->name;
-		j = _j->name;
+		i = _i->index;
+		j = _j->index;
 	}
 	~Edge() {}
 };
 
 class Graph {
 public:
-	map<string, Node> node;
-	map<string, Edge> edge;
+	map<int, Node> node;
+	map<int, Edge> edge;
 	int nSteinerNodes;
 
 	Graph() {
@@ -100,69 +94,53 @@ public:
 
 	Graph(int n_nodes) {
 		for (int i = 0; i < n_nodes; i++) {
-			ostringstream nodeName;
-			nodeName << "y" << i;
-			node.insert(pair<string, Node> (nodeName.str(), Node(nodeName.str())));
+			node.insert(pair<int, Node> (i, Node(i)) );
 		}
 		nSteinerNodes = node.size();
 	}
 
 	Node* getNode(int i) {
-		ostringstream index;
-		index << "y" << i;
-		return &(node[index.str()]);
+		return &(node[i]);
 	}
 
 	Edge* getEdge(int i){
-		ostringstream index;
-		index << "e" << i;
-		return &(edge[index.str()]);
+		return &(edge[i]);
 	}
 
-	Edge* getEdge(string fullName) {
-		map<string, Edge>::iterator it;
+	int getEdge(int i, int j) {
+		int r = 0;
+		map<int, Edge>::iterator it;
 		for (it = edge.begin(); it != edge.end(); ++it) {
-			if(fullName.compare((*it).second.nameFull) == 0)
-				return &((*it).second);
+			int ei = (*it).second.i;
+			int ej = (*it).second.j;
+			if ( (i==ei && j==ej) || (i==ej && j==ei) ) {
+				return r;
+			}
+			r++;
 		}
-		return NULL;
+		return -1;
 	}
 
-	int getNode(string nodeName) {
-		int r = -1;
-		int i = 0;
-		map<string, Node>::iterator it;
-		for (i = 0, it = node.begin(); it != node.end(); ++it, i++) {
-			if (nodeName.compare((*it).first) == 0)
-				return i;
-		}
-		return r;
-	}
-
-	void setNodeAsRobot(string nodeIndex) {
+	void setNodeAsRobot(int nodeIndex) {
 		node[nodeIndex].setRobot(1);
 		nSteinerNodes--;
 	}
 
-	void resetNode(string nodeIndex) {
+	void resetNode(int nodeIndex) {
 		node[nodeIndex].setRobot(0);
 		nSteinerNodes++;
 	}
 
 	void addNode(int c) {
-		ostringstream nodeName, nodeHoleName;
-		nodeName << "y" << node.size();
-		nodeHoleName << "z" << node.size();
-		Node n(nodeName.str());
-		n.setHoleName(nodeHoleName.str());
+		Node n(node.size());
 		n.setValue(c);
-		node.insert(pair<string, Node>(nodeName.str(), n));
+		node.insert(pair<int, Node>(node.size(), n));
 		nSteinerNodes++;
 	}
 
 	void addEdge(int i, int j, int c) {
 		if (i == j) return;
-		if (j > i) {
+		if (i > j) {
 			int t = i; i = j; j = t;
 		}
 		if(i < 0 || j < 0 || i >= node.size()
@@ -171,33 +149,33 @@ public:
 		Node* nodei = getNode(i);
 		Node* nodej = getNode(j);
 
-		ostringstream edgeName, edgeNameFull;
-		edgeName << "e" << edge.size();
-		edgeNameFull << "x" << j << "." << i;
+		ostringstream edgeName;
+		edgeName << "x" << i << "." << j;
 
-		nodei->setNeighbor(nodej, edgeName.str());
-		nodej->setNeighbor(nodei, edgeName.str(	));
+		nodei->setNeighbor(nodej, edge.size());
+		nodej->setNeighbor(nodei, edge.size());
 
-		if(getEdge(edgeNameFull.str()) == NULL) {
-			Edge e(edgeName.str(), edgeNameFull.str(), c);
+		if(getEdge(i, j) == -1) {
+			Edge e(edgeName.str(), edge.size(), c);
 			e.setNodes(nodei, nodej);
-			edge.insert(pair<string, Edge> (edgeName.str(), e));
+			edge.insert(pair<int, Edge> (edge.size(), e));
 		}
 	}
 
 	void listAllNodes() {
-		map<string, Node>::iterator it;
+		map<int, Node>::iterator it;
 		for (it = node.begin(); it != node.end(); ++it) {
-			cout << (*it).first << " => ";
+			cout << (*it).first << " [" << (*it).second.value << "] => ";
 			(*it).second.listAllNeighbors();
 			cout << endl;
 		}
 	}
 
 	void listAllEdges() {
-		map<string, Edge>::iterator it;
+		map<int, Edge>::iterator it;
 		for (it = edge.begin(); it != edge.end(); ++it) {
-			cout << (*it).first << "\t " << (*it).second.nameFull << endl;
+			cout << "e" << (*it).first << "\t " << (*it).second.name;
+			cout << " => " << (*it).second.i << "," << (*it).second.j << endl;
 		}
 	}
 
@@ -221,24 +199,18 @@ public:
 	vector<int> getEdgesFromSubset(vector<int> nodes, int subTour) {
 		vector<int> _edgesSubTour;
 		vector<int> _edgesCut;
-		vector<string> _nodes;
 
-		for (int i = 0; i < nodes.size(); i++) {
-			Node* n = getNode(nodes[i]);
-			_nodes.push_back(n->name);
-		}
-
-		map<string, Edge>::iterator it;
-		int j = 0;
-		for (it = edge.begin(); it != edge.end(); ++it, j++) {
+		map<int, Edge>::iterator it;
+		for (it = edge.begin(); it != edge.end(); ++it) {
+			int eIndex = (*it).first;
 			Edge e = (*it).second;
 			int vertices = 0;
-			for (int i = 0; i < _nodes.size(); i++) {
-				if(e.i.compare(_nodes[i]) == 0) vertices++;
-				if(e.j.compare(_nodes[i]) == 0) vertices++;
+			for (int i = 0; i < nodes.size(); i++) {
+				if(e.i == nodes[i]) vertices++;
+				if(e.j == nodes[i]) vertices++;
 			}
-			if(vertices == 1) _edgesCut.push_back(j);
-			if(vertices == 2) _edgesSubTour.push_back(j);
+			if(vertices == 1) _edgesCut.push_back(eIndex);
+			if(vertices == 2) _edgesSubTour.push_back(eIndex);
 		}
 
 		if(subTour) return _edgesSubTour;
@@ -246,7 +218,8 @@ public:
 	}
 };
 
-int gridSize = 3;
+int gridSize = 4;
+int nRobots = 3;
 int gridPos(int r, int c) {
 	return c+gridSize*r;
 }
@@ -257,22 +230,29 @@ int main(int argc, char *argv[]) {
 	GRBVar* y = 0;  // robots
 	GRBVar* z = 0;  // holes
 
-	int nRobots = 3;
 	Graph g;
 
-	vector<int> terminal_x, terminal_y;
+	vector<int> terminal, terminal_x, terminal_y;
 	terminal_x.push_back(0);
 	terminal_y.push_back(0);
+	terminal_x.push_back(2);
+	terminal_y.push_back(3);
+
+	for (int i = 0; i < terminal_x.size(); i++)
+		terminal.push_back(gridPos(terminal_x[i], terminal_y[i]));
 
 	for(int i = 0; i < gridSize; i++) {
 		for(int j = 0; j < gridSize; j++) {
 			int c = 0;
 			for (int k = 0; k < terminal_x.size(); k++) {
-				c += abs(terminal_x[k]-i)+abs(terminal_y[k]-j);
+				c += (abs(terminal_x[k]-i)+abs(terminal_y[k]-j));
 			}
 			g.addNode(c);
+			cout << c << " ";
 		}
+		cout << endl;
 	}
+
 
 	for(int i = 0; i < gridSize; i++) {
 		for(int j = 0; j < gridSize; j++) {
@@ -310,42 +290,51 @@ int main(int argc, char *argv[]) {
 		model.set(GRB_StringAttr_ModelName, "MST");
 
 		int i = 0;
-		map<string, Edge>::iterator itE;
-		map<string, Node>::iterator itN;
+		map<int, Edge>::iterator itE;
+		map<int, Node>::iterator itN;
 
-		//
+		cout << "Objective" << endl;
+		// Objective function
 		x = model.addVars(g.getTotalEdges(), GRB_BINARY);
 		model.update();
 
 		for (i = 0, itE = g.edge.begin(); itE != g.edge.end(); ++itE, i++) {
-			string edgeName = (*itE).first;
+			int edgeIndex = (*itE).first;
 			int edgeCost = (*itE).second.cost;
+			ostringstream edgeName;
+			edgeName << "e" << edgeIndex;
 			x[i].set(GRB_DoubleAttr_Obj, edgeCost);
-			x[i].set(GRB_StringAttr_VarName, edgeName);
+			x[i].set(GRB_StringAttr_VarName, edgeName.str());
 		}
 
 		y = model.addVars(g.getTotalNodes(), GRB_BINARY);
 		model.update();
 
 		for (i = 0, itN = g.node.begin(); itN != g.node.end(); ++itN, i++) {
-			string nodeName = (*itN).first;
+			int nodeIndex = (*itN).first;
 			int nodeValue = (*itN).second.value;
+			ostringstream nodeName;
+			nodeName << "y" << nodeIndex;
 			y[i].set(GRB_DoubleAttr_Obj, nodeValue);
-			y[i].set(GRB_StringAttr_VarName, nodeName);
+			y[i].set(GRB_StringAttr_VarName, nodeName.str());
 		}
 
 		z = model.addVars(g.getTotalNodes(), GRB_BINARY);
 		model.update();
 
 		for (i = 0, itN = g.node.begin(); itN != g.node.end(); ++itN, i++) {
-			string nodeName = (*itN).second.nameHole;
-			z[i].set(GRB_DoubleAttr_Obj, 1);
-			z[i].set(GRB_StringAttr_VarName, nodeName);
+			int nodeIndex = (*itN).first;
+			int nodeValue = (*itN).second.value;
+			ostringstream nodeName;
+			nodeName << "z" << nodeIndex;
+			z[i].set(GRB_DoubleAttr_Obj, nodeValue);
+			z[i].set(GRB_StringAttr_VarName, nodeName.str());
 		}
 
 		model.set(GRB_IntAttr_ModelSense, 1);
 		model.update();
 
+		cout << "Constraints.";
 		// Constraints
 		// Total number of robots
 		ostringstream nodeSumString;
@@ -358,6 +347,7 @@ int main(int argc, char *argv[]) {
 
 		model.update();
 
+		cout << ".";
 		// Select each node as a robot or a hole
 		for (i = 0; i < g.getTotalNodes(); i++) {
 			ostringstream nodeConditionString;
@@ -369,35 +359,36 @@ int main(int argc, char *argv[]) {
 
 		model.update();
 
+		cout << ".";
 		// Sum of all edges = n-1
 		ostringstream edgeSumString;
 		GRBLinExpr edgeSumExpr = 0;
+		GRBLinExpr vertexSumExpr = 0;
 		edgeSumString << "edge sum";
 		for (i = 0; i < g.getTotalEdges(); i++)
-			edgeSumExpr -= x[i];
+			edgeSumExpr += x[i];
 
 		for (i = 0; i < g.getTotalNodes(); i++)
-			edgeSumExpr += y[i]+z[i];
+			vertexSumExpr += (y[i]+z[i]);
 
-		model.addConstr(edgeSumExpr == 1, edgeSumString.str());
+		model.addConstr(edgeSumExpr == vertexSumExpr - 1, edgeSumString.str());
 
 		model.update();
 
-		// Subtour Elimination Constraints
-		vector<int> nodeSubset;
-		for (i = 0; i < g.getTotalNodes()-1; i++)
-			nodeSubset.push_back(i);
+		cout << "." << endl;
 
-		int c_n = 2;
-		while (c_n < nodeSubset.size()) {
+		// Subtour Elimination Constraints
+#if 1
+		for (int c_n = 2; c_n < g.getTotalNodes(); c_n++) {
 			int c[c_n + 1];
 
-			for (int j = 0; j < c_n; j++)
+			for (int j = 0; j < c_n+1; j++)
 				c[j] = 0;
 
 			c[c_n] = g.getTotalNodes();
 
 			int j = 0;
+			cout << "" << c_n << "/" <<  g.getTotalNodes() << endl;
 			while (1) {
 
 				int skip = 0;
@@ -417,15 +408,66 @@ int main(int argc, char *argv[]) {
 					subTourString << "s";
 					for(int i = 0; i < _edges.size(); i++) {
 						subTourString << "." << _edges[i];
-						subTourExpr += x[_edges[i]];
+						subTourExpr += c_n*x[_edges[i]];
 					}
 
 					GRBLinExpr c_nExpr = 0;
 					for(int i = 0; i < _nodes.size(); i++)
-						c_nExpr += y[_nodes[i]]+z[_nodes[i]];
+						c_nExpr += (c_n-1)*(y[_nodes[i]]+z[_nodes[i]]);
 
 					if(_edges.size() > 0)
-						model.addConstr(subTourExpr <= c_nExpr - 1, subTourString.str());
+						model.addConstr(subTourExpr <= c_nExpr, subTourString.str());
+				}
+
+				j = 0;
+				while (c[j] == c[j + 1]) {
+					c[j] = 0;
+					j++;
+				}
+				c[j]++;
+				if (j == c_n)
+					break;
+			}
+		}
+
+		model.update();
+#else
+
+		// Cutset Constraints
+		int c_n = 1;
+		while (c_n < g.getTotalNodes()) {
+			int c[c_n + 1];
+
+			for (int j = 0; j < c_n; j++)
+				c[j] = 0;
+
+			c[c_n] = g.getTotalNodes();
+
+			int j = 0;
+			while (1) {
+
+				int skip = 0;
+				for (int i = 0; i < c_n; i++) {
+					if (c[i] == c[i + 1])
+						skip = 1;
+				}
+
+				if (!skip) {
+					ostringstream cutSetString;
+					GRBLinExpr cutSetExpr;
+
+					vector<int> _nodes;
+					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
+					vector<int> _edges = g.getEdgesFromSubset(_nodes, 0);
+
+					cutSetString << "c";
+					for(int i = 0; i < _edges.size(); i++) {
+						cutSetString << "." << _edges[i];
+						cutSetExpr += x[_edges[i]];
+					}
+
+					if(_edges.size() > 0)
+						model.addConstr(cutSetExpr >= 1, cutSetString.str());
 				}
 
 				j = 0;
@@ -441,58 +483,9 @@ int main(int argc, char *argv[]) {
 		}
 
 		model.update();
+#endif
 
-		// Cutset Constraints
-//		c_n = 1;
-//		while (c_n < nodeSubset.size()) {
-//			int c[c_n + 1];
-//
-//			for (int j = 0; j < c_n; j++)
-//				c[j] = 0;
-//
-//			c[c_n] = g.getTotalNodes();
-//
-//			int j = 0;
-//			while (1) {
-//
-//				int skip = 0;
-//				for (int i = 0; i < c_n; i++) {
-//					if (c[i] == c[i + 1])
-//						skip = 1;
-//				}
-//
-//				if (!skip) {
-//					ostringstream cutSetString;
-//					GRBLinExpr cutSetExpr;
-//
-//					vector<int> _nodes;
-//					for (int i = 0; i < c_n; i++) _nodes.push_back(c[i]);
-//					vector<int> _edges = g.getEdgesFromSubset(_nodes, 0);
-//
-//					cutSetString << "c";
-//					for(int i = 0; i < _edges.size(); i++) {
-//						cutSetString << "." << _edges[i];
-//						cutSetExpr += x[_edges[i]];
-//					}
-//
-//					if(_edges.size() > 0)
-//						model.addConstr(cutSetExpr >= 1, cutSetString.str());
-//				}
-//
-//				j = 0;
-//				while (c[j] == c[j + 1]) {
-//					c[j] = 0;
-//					j++;
-//				}
-//				c[j]++;
-//				if (j == c_n)
-//					break;
-//			}
-//			c_n++;
-//		}
-//
-//		model.update();
-
+		cout << ".";
 		// New cutset conditions
 		for (int i = 0; i < g.getTotalNodes(); i++) {
 			ostringstream ncutSetString_1, ncutSetString_2;
@@ -511,19 +504,18 @@ int main(int argc, char *argv[]) {
 
 			if(edges.size() > 0) {
 				model.addConstr(ncutSetExpr_1 >= y[i] + 2*z[i], ncutSetString_1.str());
-				model.addConstr(ncutSetExpr_2 <= y[i] + 4*z[i], ncutSetString_2.str());
+				model.addConstr(ncutSetExpr_2 <= y[i] + 3*z[i], ncutSetString_2.str());
 			}
 		}
 
 		model.update();
 
+		cout << "." << endl;
 		// Set Terminal Positions
-		for (int k = 0; k < terminal_x.size(); k++) {
-			int i = terminal_x[k];
-			int j = terminal_y[k];
+		for (int k = 0; k < terminal.size(); k++) {
 			ostringstream terminalString;
-			GRBLinExpr terminalExpr = z[gridPos(i, j)];
-			terminalString << "terminal" << gridPos(i, j);
+			GRBLinExpr terminalExpr = z[terminal[k]];
+			terminalString << "terminal" << terminal[k];
 			model.addConstr(terminalExpr == 1, terminalString.str());
 		}
 
@@ -532,6 +524,7 @@ int main(int argc, char *argv[]) {
 
 		// Initialization
 
+		cout << "Solving" << endl;
 		// Use barrier to solve root relaxation
 		model.getEnv().set(GRB_IntParam_Method, GRB_METHOD_BARRIER);
 
@@ -540,7 +533,7 @@ int main(int argc, char *argv[]) {
 
 		// Print solution
 		cout << "\nTOTAL COSTS: " << model.get(GRB_DoubleAttr_ObjVal) << endl;
-		cout << "Solution:" << endl;
+		cout << "Solution" << endl;
 		cout << endl;
 		cout << "Robot/Hole Positions:" << endl;
 		for (int i = 0; i < g.getTotalNodes(); i++) {
@@ -558,6 +551,44 @@ int main(int argc, char *argv[]) {
 			if (x[i].get(GRB_DoubleAttr_X) > 0)
 				cout << x[i].get(GRB_StringAttr_VarName) << " => " << x[i].get(GRB_DoubleAttr_X) << endl;
 		}
+
+		cout << endl;
+		cout << endl;
+
+		int c = 0;
+		for (int i = 0; i < gridSize; i++) {
+			for (int j = 0; j < gridSize; j++) {
+				int n = gridPos(i, j);
+				if (y[n].get(GRB_DoubleAttr_X) > 0)	cout << "R";
+				else if (z[n].get(GRB_DoubleAttr_X) > 0) {
+					int is_t = 0;
+					for (int k = 0; k < terminal.size(); k++)
+						if(n == terminal[k]) {
+							is_t = 1;
+						}
+					if (is_t) cout << "T";
+					else cout << "O";
+				}
+				else cout << " ";
+				cout << " ";
+				int c = g.getEdge(n, n+1);
+				if (c >= 0 && x[c].get(GRB_DoubleAttr_X) > 0) cout << "--";
+				else cout << "  ";
+				cout << " ";
+			}
+			cout << endl;
+			int n = gridPos(i, 0);
+			for (int k = 0; k < gridSize; k++) {
+				int c = g.getEdge(n+k, n+k+gridSize);
+				if (c >= 0 && x[c].get(GRB_DoubleAttr_X) > 0) cout << "|";
+				else cout << " ";
+				cout << "    ";
+			}
+			cout << endl;
+		}
+
+		cout << endl;
+		cout << endl;
 
 	} catch (GRBException e) {
 		cout << "Error code = " << e.getErrorCode() << endl;
