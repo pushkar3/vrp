@@ -218,8 +218,8 @@ public:
 	}
 };
 
-int gridSize = 4;
-int nRobots = 3;
+int gridSize = 3;
+int nRobots = 5;
 int gridPos(int r, int c) {
 	return c+gridSize*r;
 }
@@ -235,8 +235,6 @@ int main(int argc, char *argv[]) {
 	vector<int> terminal, terminal_x, terminal_y;
 	terminal_x.push_back(0);
 	terminal_y.push_back(0);
-	terminal_x.push_back(2);
-	terminal_y.push_back(3);
 
 	for (int i = 0; i < terminal_x.size(); i++)
 		terminal.push_back(gridPos(terminal_x[i], terminal_y[i]));
@@ -301,6 +299,7 @@ int main(int argc, char *argv[]) {
 		for (i = 0, itE = g.edge.begin(); itE != g.edge.end(); ++itE, i++) {
 			int edgeIndex = (*itE).first;
 			int edgeCost = (*itE).second.cost;
+			edgeCost = 0;
 			ostringstream edgeName;
 			edgeName << "e" << edgeIndex;
 			x[i].set(GRB_DoubleAttr_Obj, edgeCost);
@@ -313,6 +312,7 @@ int main(int argc, char *argv[]) {
 		for (i = 0, itN = g.node.begin(); itN != g.node.end(); ++itN, i++) {
 			int nodeIndex = (*itN).first;
 			int nodeValue = (*itN).second.value;
+			nodeValue = -10;
 			ostringstream nodeName;
 			nodeName << "y" << nodeIndex;
 			y[i].set(GRB_DoubleAttr_Obj, nodeValue);
@@ -408,15 +408,15 @@ int main(int argc, char *argv[]) {
 					subTourString << "s";
 					for(int i = 0; i < _edges.size(); i++) {
 						subTourString << "." << _edges[i];
-						subTourExpr += c_n*x[_edges[i]];
+						subTourExpr += x[_edges[i]];
 					}
 
 					GRBLinExpr c_nExpr = 0;
 					for(int i = 0; i < _nodes.size(); i++)
-						c_nExpr += (c_n-1)*(y[_nodes[i]]+z[_nodes[i]]);
+						c_nExpr += (y[_nodes[i]]+z[_nodes[i]]);
 
 					if(_edges.size() > 0)
-						model.addConstr(subTourExpr <= c_nExpr, subTourString.str());
+						model.addConstr(c_n*subTourExpr <= (c_n-1)*c_nExpr, subTourString.str());
 				}
 
 				j = 0;
@@ -589,6 +589,50 @@ int main(int argc, char *argv[]) {
 
 		cout << endl;
 		cout << endl;
+
+		ofstream ofs;
+		ostringstream ofsName;
+		ofsName << "latex_" << gridSize << "_" << nRobots << ".txt";
+		ofs.open(ofsName.str().c_str());
+		ofs << "\\begin{tikzpicture}[scale=.5]\\footnotesize\n";
+		ofs << " \\begin{scope}<+->;\n";
+		ofs << "  \\draw[step=1cm,gray,very thin] (0, 0) grid (" << gridSize << ", " << gridSize << ");\n";
+		ofs << " \\end{scope}\n";
+		ofs << "\n";
+		ofs << " \\begin{scope}[thin, black]\n";
+		for (int e = 0; e < g.getTotalEdges(); e++) {
+			if (x[e].get(GRB_DoubleAttr_X) > 0) {
+				int i = g.getEdge(e)->i;
+				int j = g.getEdge(e)->j;
+				float xi = float(i/gridSize) + 0.5;
+				float yi = float(i%gridSize) + 0.5;
+				float xj = float(j/gridSize) + 0.5;
+				float yj = float(j%gridSize) + 0.5;
+				ofs << "  \\draw (" << xi << ", " << yi << ") node {}  -- (" << xj << ", " << yj << ") node {};\n";
+			}
+		}
+		ofs << " \\end{scope}\n";
+		ofs << "\n";
+		ofs << " \\begin{scope}[thick,red]\n";
+		for (int n = 0; n < g.getTotalNodes(); n++) {
+			int i = n/gridSize;
+			int j = n%gridSize;
+			if (y[n].get(GRB_DoubleAttr_X) > 0) {
+				ofs << "  \\filldraw[thin,blue,opacity=.2] ("<< i <<", "<< j <<") rectangle ("<< i+1 <<", "<< j+1 <<");\n";
+			}
+			else if (z[n].get(GRB_DoubleAttr_X) > 0) {
+				int is_t = 0;
+				for (int k = 0; k < terminal.size(); k++)
+					if(n == terminal[k]) {
+						is_t = 1;
+					}
+				if (is_t) ofs << "  \\filldraw[thin,green,opacity=.2] ("<< i <<", "<< j <<") rectangle ("<< i+1 <<", "<< j+1 <<");\n";
+				else ofs << "  \\filldraw[thin,red,opacity=.2] ("<< i <<", "<< j <<") rectangle ("<< i+1 <<", "<< j+1 <<");\n";
+			}
+		}
+		ofs << " \\end{scope}\n";
+		ofs << "\\end{tikzpicture}\n";
+		ofs.close();
 
 	} catch (GRBException e) {
 		cout << "Error code = " << e.getErrorCode() << endl;
