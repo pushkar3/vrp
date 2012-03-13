@@ -219,7 +219,7 @@ public:
 };
 
 int gridSize = 3;
-int nRobots = 5;
+int nRobots = 6;
 int gridPos(int r, int c) {
 	return c+gridSize*r;
 }
@@ -233,8 +233,8 @@ int main(int argc, char *argv[]) {
 	Graph g;
 
 	vector<int> terminal, terminal_x, terminal_y;
-	terminal_x.push_back(0);
-	terminal_y.push_back(0);
+	terminal_x.push_back(1);
+	terminal_y.push_back(1);
 
 	for (int i = 0; i < terminal_x.size(); i++)
 		terminal.push_back(gridPos(terminal_x[i], terminal_y[i]));
@@ -504,7 +504,7 @@ int main(int argc, char *argv[]) {
 
 			if(edges.size() > 0) {
 				model.addConstr(ncutSetExpr_1 >= y[i] + 2*z[i], ncutSetString_1.str());
-				model.addConstr(ncutSetExpr_2 <= y[i] + 3*z[i], ncutSetString_2.str());
+				model.addConstr(ncutSetExpr_2 <= y[i] + 4*z[i], ncutSetString_2.str());
 			}
 		}
 
@@ -626,8 +626,8 @@ int main(int argc, char *argv[]) {
 					if(n == terminal[k]) {
 						is_t = 1;
 					}
-				if (is_t) ofs << "  \\filldraw[thin,green,opacity=.2] ("<< i <<", "<< j <<") rectangle ("<< i+1 <<", "<< j+1 <<");\n";
-				else ofs << "  \\filldraw[thin,red,opacity=.2] ("<< i <<", "<< j <<") rectangle ("<< i+1 <<", "<< j+1 <<");\n";
+				if (is_t) ofs << "  \\filldraw[thin,red,opacity=.5] ("<< i <<", "<< j <<") rectangle ("<< i+1 <<", "<< j+1 <<");\n";
+				else ofs << "  \\filldraw[thin,green,opacity=.3] ("<< i <<", "<< j <<") rectangle ("<< i+1 <<", "<< j+1 <<");\n";
 			}
 		}
 		ofs << " \\end{scope}\n";
